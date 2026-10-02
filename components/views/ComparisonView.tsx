@@ -276,11 +276,14 @@ export function ComparisonView({
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
                       <strong>{formatNumber(vehicle.familySpace.lengthMm, 0)} mm</strong>
-                      {usedCar && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400">
-                          {compareDimensions(vehicle.familySpace.lengthMm, usedCar.lengthMm).text}
-                        </span>
-                      )}
+                      {usedCar && (() => {
+                        const comp = compareDimensions(vehicle.familySpace.lengthMm, usedCar.lengthMm, 'mm', 'lower');
+                        return (
+                          <span className={`block text-[10px] ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        );
+                      })()}
                     </td>
                   ))}
                 </tr>
@@ -292,11 +295,14 @@ export function ComparisonView({
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
                       <strong>{formatNumber(vehicle.familySpace.widthMm, 0)} mm</strong>
-                      {usedCar && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400">
-                          {compareDimensions(vehicle.familySpace.widthMm, usedCar.widthMm).text}
-                        </span>
-                      )}
+                      {usedCar && (() => {
+                        const comp = compareDimensions(vehicle.familySpace.widthMm, usedCar.widthMm, 'mm', 'higher');
+                        return (
+                          <span className={`block text-[10px] ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        );
+                      })()}
                     </td>
                   ))}
                 </tr>
@@ -308,11 +314,14 @@ export function ComparisonView({
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
                       <strong>{formatNumber(vehicle.familySpace.wheelbaseMm, 0)} mm</strong>
-                      {usedCar && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400">
-                          {compareDimensions(vehicle.familySpace.wheelbaseMm, usedCar.wheelbaseMm).text}
-                        </span>
-                      )}
+                      {usedCar && (() => {
+                        const comp = compareDimensions(vehicle.familySpace.wheelbaseMm, usedCar.wheelbaseMm, 'mm', 'higher');
+                        return (
+                          <span className={`block text-[10px] ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        );
+                      })()}
                     </td>
                   ))}
                 </tr>
@@ -324,11 +333,14 @@ export function ComparisonView({
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
                       <strong>{formatNumber(vehicle.familySpace.weightKg, 0)} kg</strong>
-                      {usedCar && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400">
-                          {compareDimensions(vehicle.familySpace.weightKg, usedCar.weightKg, 'kg').text}
-                        </span>
-                      )}
+                      {usedCar && (() => {
+                        const comp = compareDimensions(vehicle.familySpace.weightKg, usedCar.weightKg, 'kg', 'lower');
+                        return (
+                          <span className={`block text-[10px] ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        );
+                      })()}
                     </td>
                   ))}
                 </tr>
@@ -347,11 +359,14 @@ export function ComparisonView({
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
                       <strong>{vehicle.trunk.volumeLiters} Litros</strong>
-                      {usedCar?.trunkVolumeLiters && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400">
-                          {compareDimensions(vehicle.trunk.volumeLiters, usedCar.trunkVolumeLiters, 'L').text}
-                        </span>
-                      )}
+                      {usedCar?.trunkVolumeLiters && (() => {
+                        const comp = compareDimensions(vehicle.trunk.volumeLiters, usedCar.trunkVolumeLiters, 'L', 'higher');
+                        return (
+                          <span className={`block text-[10px] ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        );
+                      })()}
                     </td>
                   ))}
                 </tr>
@@ -389,64 +404,76 @@ export function ComparisonView({
               {(!onlyDifferences || hasDiff((i) => i.vehicle.powertrainSpec.totalPowerHp)) && (
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Potência Total</td>
-                  {calculatedMap.map(({ vehicle }, idx) => (
-                    <td key={vehicle.id} className={`p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums ${idx === bestPowerIdx ? 'font-bold text-blue-600 dark:text-cyan-400' : ''}`}>
-                      <strong>{vehicle.powertrainSpec.totalPowerHp} cv</strong>
-                      {usedCar?.powerHp && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
-                          {compareDimensions(vehicle.powertrainSpec.totalPowerHp, usedCar.powerHp, 'cv').text}
-                        </span>
-                      )}
-                    </td>
-                  ))}
+                  {calculatedMap.map(({ vehicle }, idx) => {
+                    const comp = usedCar?.powerHp ? compareDimensions(vehicle.powertrainSpec.totalPowerHp, usedCar.powerHp, 'cv', 'higher') : null;
+                    return (
+                      <td key={vehicle.id} className={`p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums ${idx === bestPowerIdx ? 'font-bold text-blue-600 dark:text-cyan-400' : ''}`}>
+                        <strong className={comp?.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{vehicle.powertrainSpec.totalPowerHp} cv</strong>
+                        {comp && (
+                          <span className={`block text-[10px] font-normal ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               )}
 
               {(!onlyDifferences || hasDiff((i) => i.vehicle.powertrainSpec.torqueKgfm)) && (
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Torque Total</td>
-                  {calculatedMap.map(({ vehicle }) => (
-                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      {formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm
-                      {usedCar?.torqueKgfm && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
-                          {compareDimensions(vehicle.powertrainSpec.torqueKgfm, usedCar.torqueKgfm, 'kgfm').text}
-                        </span>
-                      )}
-                    </td>
-                  ))}
+                  {calculatedMap.map(({ vehicle }) => {
+                    const comp = usedCar?.torqueKgfm ? compareDimensions(vehicle.powertrainSpec.torqueKgfm, usedCar.torqueKgfm, 'kgfm', 'higher', 1) : null;
+                    return (
+                      <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                        <strong className={comp?.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm</strong>
+                        {comp && (
+                          <span className={`block text-[10px] font-normal ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               )}
 
               {(!onlyDifferences || hasDiff((i) => i.vehicle.powertrainSpec.zeroToHundredSeconds)) && (
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">0 a 100 km/h</td>
-                  {calculatedMap.map(({ vehicle }) => (
-                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      <strong>{formatNumber(vehicle.powertrainSpec.zeroToHundredSeconds, 1)} s</strong>
-                      {usedCar?.zeroToHundredSeconds && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
-                          {compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's').text}
-                        </span>
-                      )}
-                    </td>
-                  ))}
+                  {calculatedMap.map(({ vehicle }) => {
+                    const comp = usedCar?.zeroToHundredSeconds ? compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's', 'lower', 1) : null;
+                    return (
+                      <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                        <strong className={comp?.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{formatNumber(vehicle.powertrainSpec.zeroToHundredSeconds, 1)} s</strong>
+                        {comp && (
+                          <span className={`block text-[10px] font-normal ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               )}
 
               {(!onlyDifferences || hasDiff((i) => i.vehicle.powertrainSpec.totalRangeKm)) && (
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Autonomia Total</td>
-                  {calculatedMap.map(({ vehicle }) => (
-                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      {vehicle.powertrainSpec.totalRangeKm ? `${vehicle.powertrainSpec.totalRangeKm} km` : '—'}
-                      {usedCar?.totalRangeKm && vehicle.powertrainSpec.totalRangeKm > 0 && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
-                          {compareDimensions(vehicle.powertrainSpec.totalRangeKm, usedCar.totalRangeKm, 'km').text}
-                        </span>
-                      )}
-                    </td>
-                  ))}
+                  {calculatedMap.map(({ vehicle }) => {
+                    const comp = usedCar?.totalRangeKm && vehicle.powertrainSpec.totalRangeKm > 0 ? compareDimensions(vehicle.powertrainSpec.totalRangeKm, usedCar.totalRangeKm, 'km', 'higher') : null;
+                    return (
+                      <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                        <strong className={comp?.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{vehicle.powertrainSpec.totalRangeKm ? `${vehicle.powertrainSpec.totalRangeKm} km` : '—'}</strong>
+                        {comp && (
+                          <span className={`block text-[10px] font-normal ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               )}
 
@@ -471,48 +498,57 @@ export function ComparisonView({
               {(!onlyDifferences || hasDiff((i) => i.vehicle.consumption.urbanKmL)) && (
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Consumo Cidade</td>
-                  {calculatedMap.map(({ vehicle }) => (
-                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      <strong>{formatNumber(vehicle.consumption.urbanKmL, 1)} km/l</strong>
-                      {usedCar?.urbanGasolineKmL && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
-                          {compareDimensions(vehicle.consumption.urbanKmL, usedCar.urbanGasolineKmL, 'km/l').text}
-                        </span>
-                      )}
-                    </td>
-                  ))}
+                  {calculatedMap.map(({ vehicle }) => {
+                    const comp = usedCar?.urbanGasolineKmL ? compareDimensions(vehicle.consumption.urbanKmL, usedCar.urbanGasolineKmL, 'km/l', 'higher', 1) : null;
+                    return (
+                      <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                        <strong className={comp?.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{formatNumber(vehicle.consumption.urbanKmL, 1)} km/l</strong>
+                        {comp && (
+                          <span className={`block text-[10px] font-normal ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               )}
 
               {(!onlyDifferences || hasDiff((i) => i.vehicle.consumption.highwayKmL)) && (
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Consumo Estrada</td>
-                  {calculatedMap.map(({ vehicle }) => (
-                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      <strong>{formatNumber(vehicle.consumption.highwayKmL, 1)} km/l</strong>
-                      {usedCar?.highwayGasolineKmL && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
-                          {compareDimensions(vehicle.consumption.highwayKmL, usedCar.highwayGasolineKmL, 'km/l').text}
-                        </span>
-                      )}
-                    </td>
-                  ))}
+                  {calculatedMap.map(({ vehicle }) => {
+                    const comp = usedCar?.highwayGasolineKmL ? compareDimensions(vehicle.consumption.highwayKmL, usedCar.highwayGasolineKmL, 'km/l', 'higher', 1) : null;
+                    return (
+                      <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                        <strong className={comp?.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{formatNumber(vehicle.consumption.highwayKmL, 1)} km/l</strong>
+                        {comp && (
+                          <span className={`block text-[10px] font-normal ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               )}
 
               {(!onlyDifferences || hasDiff((i) => i.vehicle.safety.airbagsCount)) && (
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Airbags</td>
-                  {calculatedMap.map(({ vehicle }) => (
-                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      <strong>{vehicle.safety.airbagsCount} airbags</strong>
-                      {usedCar?.airbagsCount && (
-                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
-                          {compareDimensions(vehicle.safety.airbagsCount, usedCar.airbagsCount, 'airbags').text}
-                        </span>
-                      )}
-                    </td>
-                  ))}
+                  {calculatedMap.map(({ vehicle }) => {
+                    const comp = usedCar?.airbagsCount ? compareDimensions(vehicle.safety.airbagsCount, usedCar.airbagsCount, 'airbags', 'higher') : null;
+                    return (
+                      <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                        <strong className={comp?.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{vehicle.safety.airbagsCount} airbags</strong>
+                        {comp && (
+                          <span className={`block text-[10px] font-normal ${comp.colorClass}`}>
+                            {comp.text}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               )}
 
@@ -540,7 +576,7 @@ export function ComparisonView({
                   <td key={vehicle.id} className={`p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums ${idx === bestTcoIdx ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : ''}`}>
                     <strong>R$ {formatMoney(tco.totalTCO)}</strong>
                     {usedCar?.tco3Years && (
-                      <span className={`block text-[10px] font-normal ${tco.totalTCO <= usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                      <span className={`block text-[10px] font-normal ${tco.totalTCO <= usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400 font-bold'}`}>
                         {tco.totalTCO <= usedCar.tco3Years
                           ? `- R$ ${formatMoney(usedCar.tco3Years - tco.totalTCO)} vs usado`
                           : `+ R$ ${formatMoney(tco.totalTCO - usedCar.tco3Years)} vs usado`}

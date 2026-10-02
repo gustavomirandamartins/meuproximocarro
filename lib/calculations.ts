@@ -108,12 +108,22 @@ export function getIsofixRating(distanceCm: number | null | undefined): {
   };
 }
 
+export interface DisqualificationDetail {
+  type: 'PRICE' | 'LENGTH' | 'ISOFIX' | 'CAPACITY' | 'BEV';
+  title: string;
+  description: string;
+}
+
 export interface EliminationCheckResult {
   isEliminated: boolean;
   isPendingMeasurement: boolean;
   reason?: string;
+  disqualifications: DisqualificationDetail[];
   passedRequirements: string[];
   failedRequirements: string[];
+  isPriceDisqualified: boolean;
+  isLengthDisqualified: boolean;
+  isIsofixDisqualified: boolean;
 }
 
 export function checkElimination(
@@ -122,36 +132,89 @@ export function checkElimination(
 ): EliminationCheckResult {
   const passedRequirements: string[] = [];
   const failedRequirements: string[] = [];
+  const disqualifications: DisqualificationDetail[] = [];
   let isPendingMeasurement = false;
 
-  // 1. BEV Check (se ativado nas preferências)
-  if (settings.excludeBEV && vehicle.powertrain === 'BEV') {
-    failedRequirements.push('Veículo 100% elétrico (BEV) desativado nas preferências');
-  } else {
-    passedRequirements.push('Motorização elegível');
+  // 1. Desclassificação por Valor acima de R$ 200.000,00
+  const maxPrice = settings.maxStorePrice ?? 200000;
+  const storePrice = vehicle.financial?.storePrice || vehicle.financial?.tablePrice || 0;
+  let isPriceDisqualified = false;
+  if (storePrice > maxPrice) {
+    isPriceDisqualified = true;
+    const msg = `Valor acima de R$ ${formatMoney(maxPrice)} (Preço: R$ ${formatMoney(storePrice)})`;
+    failedRequirements.push(msg);
+    disqualifications.push({
+      type: 'PRICE',
+      title: `Valor acima de R$ ${formatMoney(maxPrice)}`,
+      description: `Preço da loja de R$ ${formatMoney(storePrice)} excede o limite de R$ ${formatMoney(maxPrice)}`,
+    });
+  } else if (storePrice > 0) {
+    passedRequirements.push(`Preço da loja (R$ ${formatMoney(storePrice)}) dentro do limite de R$ ${formatMoney(maxPrice)}`);
   }
 
-  // 2. Regra de Passageiros & ISOFIX:
-  // Se for até 4: tá descartado.
-  // A partir de 5: a distância precisa ser maior ou igual a 45cm, aí passa.
-  // Se for acima de 5 passageiros passa com qualquer distância de ISOFIX.
+  // 2. Desclassificação por Comprimento muito acima de 4500mm
+  const maxLength = settings.maxLengthMm ?? 4500;
+  const lengthMm = vehicle.familySpace?.lengthMm || 0;
+  let isLengthDisqualified = false;
+  if (lengthMm > maxLength) {
+    isLengthDisqualified = true;
+    const diffMm = lengthMm - maxLength;
+    const msg = `Comprimento muito acima de ${formatNumber(maxLength, 0)} mm (${formatNumber(lengthMm, 0)} mm, +${formatNumber(diffMm, 0)} mm)`;
+    failedRequirements.push(msg);
+    disqualifications.push({
+      type: 'LENGTH',
+      title: `Comprimento muito acima de ${formatNumber(maxLength, 0)} mm`,
+      description: `Comprimento total de ${formatNumber(lengthMm, 0)} mm excede a vaga/garagem familiar (limite ${formatNumber(maxLength, 0)} mm)`,
+    });
+  } else if (lengthMm > 0) {
+    passedRequirements.push(`Comprimento de ${formatNumber(lengthMm, 0)} mm adequado ao padrão familiar (≤ ${formatNumber(maxLength, 0)} mm)`);
+  }
+
+  // 3. Desclassificação por Distância do ISOFIX abaixo de 45cm
+  const minIsofix = settings.isofixMinDistanceCm ?? 45;
   const passengers = vehicle.familySpace?.passengerCapacity ?? 5;
   const isofixDist = vehicle.familySpace?.isofixDistanceCm;
+  let isIsofixDisqualified = false;
 
   if (passengers <= 4) {
-    failedRequirements.push(`Descartado: Capacidade de até 4 passageiros (${passengers} lugares)`);
+    isIsofixDisqualified = true;
+    const msg = `Capacidade restrita a ${passengers} passageiros (mínimo 5 para uso familiar)`;
+    failedRequirements.push(msg);
+    disqualifications.push({
+      type: 'CAPACITY',
+      title: 'Capacidade insuficiente',
+      description: `Acomoda apenas ${passengers} ocupantes (descartado pelo critério familiar)`,
+    });
   } else if (passengers === 5) {
     if (isofixDist === null || isofixDist === undefined || isNaN(isofixDist) || isofixDist === 0) {
       isPendingMeasurement = true;
-      passedRequirements.push('Aguardando medição presencial do ISOFIX na concessionária (requer ≥ 45,00 cm)');
-    } else if (isofixDist < 45) {
-      failedRequirements.push(`Descartado: Distância ISOFIX de ${formatNumber(isofixDist, 2)} cm é inferior a 45,00 cm`);
+      passedRequirements.push(`Aguardando medição presencial do ISOFIX na concessionária (requer ≥ ${formatNumber(minIsofix, 2)} cm)`);
+    } else if (isofixDist < minIsofix) {
+      isIsofixDisqualified = true;
+      const msg = `Distância do ISOFIX de ${formatNumber(isofixDist, 2)} cm abaixo de ${formatNumber(minIsofix, 2)} cm`;
+      failedRequirements.push(msg);
+      disqualifications.push({
+        type: 'ISOFIX',
+        title: `Distância do ISOFIX abaixo de ${formatNumber(minIsofix, 2)} cm`,
+        description: `Espaço de ${formatNumber(isofixDist, 2)} cm impede o posicionamento de 3 cadeirinhas/assentos ou adulto central confortável`,
+      });
     } else {
-      passedRequirements.push(`Aprovado: 5 passageiros com ISOFIX ≥ 45,00 cm (${formatNumber(isofixDist, 2)} cm)`);
+      passedRequirements.push(`Espaço ISOFIX de ${formatNumber(isofixDist, 2)} cm aprovado (≥ ${formatNumber(minIsofix, 2)} cm)`);
     }
   } else {
-    // Acima de 5 passageiros (ex: 6 ou 7 lugares): passa com qualquer distância ISOFIX
-    passedRequirements.push(`Aprovado: Acima de 5 passageiros (${passengers} lugares)`);
+    // Acima de 5 passageiros (6 ou 7 lugares): aprovado
+    passedRequirements.push(`Capacidade ampliada de ${passengers} passageiros`);
+  }
+
+  // 4. BEV Check (se ativado nas preferências)
+  if (settings.excludeBEV && vehicle.powertrain === 'BEV') {
+    const msg = 'Veículo 100% elétrico (BEV) desativado nas preferências';
+    failedRequirements.push(msg);
+    disqualifications.push({
+      type: 'BEV',
+      title: '100% Elétrico (BEV)',
+      description: 'Filtro de exclusão de veículos puramente elétricos ativo',
+    });
   }
 
   const isEliminated = failedRequirements.length > 0;
@@ -160,10 +223,14 @@ export function checkElimination(
     isEliminated,
     isPendingMeasurement,
     reason: failedRequirements.length > 0 
-      ? failedRequirements[0] 
+      ? failedRequirements.join('; ') 
       : (isPendingMeasurement ? 'Medição de ISOFIX pendente na concessionária' : undefined),
+    disqualifications,
     passedRequirements,
     failedRequirements,
+    isPriceDisqualified,
+    isLengthDisqualified,
+    isIsofixDisqualified,
   };
 }
 
@@ -261,30 +328,61 @@ export function calculatePaymentOption(
   }
 }
 
+export type BetterDirection = 'higher' | 'lower' | 'neutral';
+
 export function compareDimensions(
   candidateVal: number,
   usedCarVal: number,
-  unit: string = 'mm'
+  unit: string = 'mm',
+  betterDirection: BetterDirection = 'neutral',
+  decimals: number = 0
 ): {
   diff: number;
   percentDiff: number;
   text: string;
   isPositive: boolean;
   isEqual: boolean;
+  isWorse: boolean;
+  isBetter: boolean;
+  colorClass: string;
 } {
   const diff = candidateVal - usedCarVal;
   const percentDiff = usedCarVal > 0 ? (diff / usedCarVal) * 100 : 0;
   const sign = diff > 0 ? '+' : '';
-  const text = diff === 0
-    ? `Igual ao usado (${formatNumber(usedCarVal, 0)} ${unit})`
-    : `${sign}${formatNumber(diff, 0)} ${unit} (${sign}${formatNumber(percentDiff, 1)}%) vs usado`;
+  const isEqual = Math.abs(diff) < 0.0001;
+  const text = isEqual
+    ? `Igual ao usado (${formatNumber(usedCarVal, decimals)} ${unit})`
+    : `${sign}${formatNumber(diff, decimals)} ${unit} (${sign}${formatNumber(percentDiff, 1)}%) vs usado`;
+
+  let isWorse = false;
+  let isBetter = false;
+
+  if (!isEqual) {
+    if (betterDirection === 'higher') {
+      isBetter = diff > 0;
+      isWorse = diff < 0;
+    } else if (betterDirection === 'lower') {
+      isBetter = diff < 0;
+      isWorse = diff > 0;
+    }
+  }
+
+  // Se o ponto for pior que o usado, destaca em vermelho conforme solicitado:
+  const colorClass = isWorse
+    ? 'text-rose-600 dark:text-rose-400 font-semibold'
+    : isBetter
+    ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+    : 'text-slate-500 dark:text-slate-400';
 
   return {
     diff,
     percentDiff,
     text,
     isPositive: diff > 0,
-    isEqual: diff === 0,
+    isEqual,
+    isWorse,
+    isBetter,
+    colorClass,
   };
 }
 
@@ -502,24 +600,46 @@ export function generatePositionExplanation(
     strengths.push('Pacote completo de segurança ADAS');
   }
 
-  if (vehicle.financial.storePrice <= 220000) {
-    strengths.push(`Preço da loja competitivo (R$ ${formatMoney(vehicle.financial.storePrice)})`);
+  const elim = checkElimination(vehicle, settings);
+
+  if (vehicle.financial.storePrice > 0 && vehicle.financial.storePrice <= (settings.maxStorePrice ?? 200000)) {
+    strengths.push(`Preço da loja competitivo e dentro do teto de R$ ${formatMoney(settings.maxStorePrice ?? 200000)} (R$ ${formatMoney(vehicle.financial.storePrice)})`);
+  }
+
+  if (vehicle.familySpace.lengthMm > 0 && vehicle.familySpace.lengthMm <= (settings.maxLengthMm ?? 4500)) {
+    strengths.push(`Comprimento de ${formatNumber(vehicle.familySpace.lengthMm, 0)} mm compatível com vaga de garagem familiar (≤ ${formatNumber(settings.maxLengthMm ?? 4500, 0)} mm)`);
+  }
+
+  if (elim.isPriceDisqualified) {
+    weaknesses.push(`Preço de R$ ${formatMoney(vehicle.financial.storePrice)} acima do teto estipulado de R$ ${formatMoney(settings.maxStorePrice ?? 200000)} (desclassificatório)`);
+  }
+
+  if (elim.isLengthDisqualified) {
+    weaknesses.push(`Comprimento de ${formatNumber(vehicle.familySpace.lengthMm, 0)} mm muito acima de ${formatNumber(settings.maxLengthMm ?? 4500, 0)} mm (desclassificatório)`);
+  }
+
+  if (elim.isIsofixDisqualified) {
+    weaknesses.push(`Distância ISOFIX de ${formatNumber(vehicle.familySpace.isofixDistanceCm || 0, 2)} cm abaixo de ${formatNumber(settings.isofixMinDistanceCm ?? 45, 2)} cm (desclassificatório)`);
   }
 
   if (vehicle.familySpace.isofixDistanceCm === null) {
     weaknesses.push('Medição presencial da fita métrica pendente no showroom');
-  } else if (vehicle.familySpace.isofixDistanceCm < 45 && vehicle.familySpace.passengerCapacity <= 5) {
-    weaknesses.push(`Distância ISOFIX restrita (${formatNumber(vehicle.familySpace.isofixDistanceCm, 2)} cm)`);
   }
 
   if (vehicle.warrantyCosts.generalWarrantyYears < 5) {
     weaknesses.push(`Garantia geral de ${vehicle.warrantyCosts.generalWarrantyYears} anos`);
   }
 
+  const headline = elim.isEliminated
+    ? `Desclassificado para as últimas posições por critérios eliminatórios (${elim.reason})`
+    : `Pontuação ponderada de ${formatNumber(scores.finalWeightedScore, 1)} / 100`;
+
   return {
-    headline: `Pontuação ponderada de ${formatNumber(scores.finalWeightedScore, 1)} / 100`,
-    comparativeNote: `Avaliado considerando TCO de 3 anos (IPVA BA 2,5%), dimensões vs usado e espaço familiar.`,
-    strengths: strengths.length > 0 ? strengths : ['Bom equilíbrio para uso familiar'],
+    headline,
+    comparativeNote: elim.isEliminated
+      ? `Rebaixado para o final da classificação por violar requisitos mínimos obrigatórios.`
+      : `Avaliado considerando TCO de 3 anos (IPVA BA 2,5%), dimensões vs usado e espaço familiar.`,
+    strengths: strengths.length > 0 ? strengths : ['Veículo em avaliação'],
     weaknesses: weaknesses.length > 0 ? weaknesses : ['Nenhum ponto impeditivo detectado'],
   };
 }

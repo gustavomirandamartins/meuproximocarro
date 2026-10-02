@@ -265,40 +265,58 @@ export function VehiclesView({
                       <div>
                         <span className="text-slate-500">Comp: </span>
                         <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.lengthMm, 0)} mm</strong>
-                        {usedCar && (
-                          <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                            {compareDimensions(vehicle.familySpace.lengthMm, usedCar.lengthMm).text}
-                          </span>
-                        )}
+                        {usedCar && (() => {
+                          const comp = compareDimensions(vehicle.familySpace.lengthMm, usedCar.lengthMm, 'mm', 'lower');
+                          return (
+                            <span className={`block text-[9px] ${comp.colorClass}`}>
+                              {comp.text}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div>
                         <span className="text-slate-500">Larg: </span>
                         <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.widthMm, 0)} mm</strong>
-                        {usedCar && (
-                          <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                            {compareDimensions(vehicle.familySpace.widthMm, usedCar.widthMm).text}
-                          </span>
-                        )}
+                        {usedCar && (() => {
+                          const comp = compareDimensions(vehicle.familySpace.widthMm, usedCar.widthMm, 'mm', 'higher');
+                          return (
+                            <span className={`block text-[9px] ${comp.colorClass}`}>
+                              {comp.text}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div>
                         <span className="text-slate-500">Entre-eixos: </span>
                         <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.wheelbaseMm, 0)} mm</strong>
-                        {usedCar && (
-                          <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                            {compareDimensions(vehicle.familySpace.wheelbaseMm, usedCar.wheelbaseMm).text}
-                          </span>
-                        )}
+                        {usedCar && (() => {
+                          const comp = compareDimensions(vehicle.familySpace.wheelbaseMm, usedCar.wheelbaseMm, 'mm', 'higher');
+                          return (
+                            <span className={`block text-[9px] ${comp.colorClass}`}>
+                              {comp.text}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div>
                         <span className="text-slate-500">Peso: </span>
-                        <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.weightKg, 0)} kg</strong>
-                        {usedCar && (
-                          <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                            {compareDimensions(vehicle.familySpace.weightKg, usedCar.weightKg, 'kg').text}
-                          </span>
+                        {usedCar ? (() => {
+                          const comp = compareDimensions(vehicle.familySpace.weightKg, usedCar.weightKg, 'kg', 'lower');
+                          return (
+                            <>
+                              <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                {formatNumber(vehicle.familySpace.weightKg, 0)} kg
+                              </strong>
+                              <span className={`block text-[9px] ${comp.colorClass}`}>
+                                {comp.text}
+                              </span>
+                            </>
+                          );
+                        })() : (
+                          <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.weightKg, 0)} kg</strong>
                         )}
                       </div>
                     </div>
@@ -313,58 +331,160 @@ export function VehiclesView({
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1 text-[11px]">
                         <div>
                           <span className="text-slate-500">Porta-Malas: </span>
-                          <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.trunk.volumeLiters} L</strong>
-                          {usedCar.trunkVolumeLiters && (
-                            <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                              {compareDimensions(vehicle.trunk.volumeLiters, usedCar.trunkVolumeLiters, 'L').text}
-                            </span>
+                          {usedCar.trunkVolumeLiters ? (() => {
+                            const comp = compareDimensions(vehicle.trunk.volumeLiters, usedCar.trunkVolumeLiters, 'L', 'higher');
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {vehicle.trunk.volumeLiters} L
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.trunk.volumeLiters} L</strong>
                           )}
                         </div>
 
                         <div>
                           <span className="text-slate-500">0-100 km/h: </span>
-                          <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.zeroToHundredSeconds} s</strong>
-                          {usedCar.zeroToHundredSeconds && (
-                            <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                              {compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's').text}
-                            </span>
+                          {usedCar.zeroToHundredSeconds ? (() => {
+                            const comp = compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's', 'lower', 1);
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {vehicle.powertrainSpec.zeroToHundredSeconds} s
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.zeroToHundredSeconds} s</strong>
                           )}
                         </div>
 
                         <div>
                           <span className="text-slate-500">Potência: </span>
-                          <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalPowerHp} cv</strong>
-                          {usedCar.powerHp && (
-                            <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                              {compareDimensions(vehicle.powertrainSpec.totalPowerHp, usedCar.powerHp, 'cv').text}
-                            </span>
+                          {usedCar.powerHp ? (() => {
+                            const comp = compareDimensions(vehicle.powertrainSpec.totalPowerHp, usedCar.powerHp, 'cv', 'higher');
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {vehicle.powertrainSpec.totalPowerHp} cv
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalPowerHp} cv</strong>
+                          )}
+                        </div>
+
+                        <div>
+                          <span className="text-slate-500">Torque: </span>
+                          {usedCar.torqueKgfm ? (() => {
+                            const comp = compareDimensions(vehicle.powertrainSpec.torqueKgfm, usedCar.torqueKgfm, 'kgfm', 'higher', 1);
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm</strong>
+                          )}
+                        </div>
+
+                        <div>
+                          <span className="text-slate-500">Autonomia: </span>
+                          {usedCar.totalRangeKm && vehicle.powertrainSpec.totalRangeKm > 0 ? (() => {
+                            const comp = compareDimensions(vehicle.powertrainSpec.totalRangeKm, usedCar.totalRangeKm, 'km', 'higher');
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {vehicle.powertrainSpec.totalRangeKm} km
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalRangeKm ? `${vehicle.powertrainSpec.totalRangeKm} km` : '—'}</strong>
+                          )}
+                        </div>
+
+                        <div>
+                          <span className="text-slate-500">Airbags: </span>
+                          {usedCar.airbagsCount ? (() => {
+                            const comp = compareDimensions(vehicle.safety.airbagsCount, usedCar.airbagsCount, 'airbags', 'higher');
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {vehicle.safety.airbagsCount}
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.safety.airbagsCount}</strong>
                           )}
                         </div>
 
                         <div>
                           <span className="text-slate-500">Consumo Urbano: </span>
-                          <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.urbanKmL} km/l</strong>
-                          {usedCar.urbanGasolineKmL && (
-                            <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                              {compareDimensions(vehicle.consumption.urbanKmL, usedCar.urbanGasolineKmL, 'km/l').text}
-                            </span>
+                          {usedCar.urbanGasolineKmL ? (() => {
+                            const comp = compareDimensions(vehicle.consumption.urbanKmL, usedCar.urbanGasolineKmL, 'km/l', 'higher', 1);
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {vehicle.consumption.urbanKmL} km/l
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.urbanKmL} km/l</strong>
                           )}
                         </div>
 
                         <div>
                           <span className="text-slate-500">Consumo Estrada: </span>
-                          <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.highwayKmL} km/l</strong>
-                          {usedCar.highwayGasolineKmL && (
-                            <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                              {compareDimensions(vehicle.consumption.highwayKmL, usedCar.highwayGasolineKmL, 'km/l').text}
-                            </span>
+                          {usedCar.highwayGasolineKmL ? (() => {
+                            const comp = compareDimensions(vehicle.consumption.highwayKmL, usedCar.highwayGasolineKmL, 'km/l', 'higher', 1);
+                            return (
+                              <>
+                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                                  {vehicle.consumption.highwayKmL} km/l
+                                </strong>
+                                <span className={`block text-[9px] ${comp.colorClass}`}>
+                                  {comp.text}
+                                </span>
+                              </>
+                            );
+                          })() : (
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.highwayKmL} km/l</strong>
                           )}
                         </div>
 
                         <div>
                           <span className="text-slate-500">TCO 3a vs Usado: </span>
                           {usedCar.tco3Years ? (
-                            <span className={`block font-semibold tabular-nums ${tco.totalTCO <= usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                            <span className={`block font-semibold tabular-nums ${tco.totalTCO <= usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400 font-bold'}`}>
                               {tco.totalTCO <= usedCar.tco3Years
                                 ? `- R$ ${formatMoney(usedCar.tco3Years - tco.totalTCO)}`
                                 : `+ R$ ${formatMoney(tco.totalTCO - usedCar.tco3Years)}`}

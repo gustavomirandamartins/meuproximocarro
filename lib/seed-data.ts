@@ -24,6 +24,8 @@ export const DEFAULT_USED_CAR: RegisteredUsedCar = {
 
 export const INITIAL_PREFERENCES: UserPreferences = {
   isofixMinDistanceCm: 45,
+  maxStorePrice: 200000, // Desclassifica acima de R$ 200.000,00
+  maxLengthMm: 4500, // Desclassifica muito acima de 4500 mm
   autoEliminateIncompatible: true,
   excludeBEV: false,
   
@@ -299,6 +301,73 @@ export const INITIAL_VEHICLES: Vehicle[] = [
       insuranceAnnual: 4600.00,
       revisions3Years: 2980.00,
       consumption3Years: 10800.00,
+    },
+    comfortTech: {
+      electricSeats: true,
+      rearAirVents: true,
+      carPlayWireless: true,
+      panoramicSunroof: true,
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'caoa-chery-tiggo-7-pro-hybrid',
+    brand: 'Caoa Chery',
+    model: 'Tiggo 7 Pro',
+    version: 'Hybrid Max Drive 48V',
+    powertrain: 'HEV',
+    status: 'Finalista',
+    yearManufacture: 2024,
+    yearModel: 2025,
+    dealership: 'D21 Motors Salvador (Bonocô)',
+    sellerName: 'Leandro Pires',
+    notes: 'Dentro do teto de preço (R$ 169.990) e comprimento de 4.500 mm. Medição ISOFIX presencial: 45,5 cm comprovados.',
+    financial: {
+      tablePrice: 179990.00,
+      storePrice: 169990.00,
+      usedCarEvaluation: 80000.00,
+      paymentConditions: [],
+    },
+    familySpace: {
+      isofixDistanceCm: 45.5, // >= 45 cm (atende plenamente)
+      passengerCapacity: 5,
+      lengthMm: 4500, // <= 4500 mm (dentro do limite)
+      widthMm: 1842,
+      wheelbaseMm: 2670,
+      weightKg: 1475,
+    },
+    trunk: {
+      volumeLiters: 475,
+      spareTireKit: 'Estepe temporário',
+      electricTailgate: true,
+    },
+    powertrainSpec: {
+      totalPowerHp: 160,
+      torqueKgfm: 25.5,
+      zeroToHundredSeconds: 9.7,
+      totalRangeKm: 740,
+      drivetrain: 'FWD',
+      batteryKwh: 0.9,
+      electricRangeKm: 0,
+    },
+    consumption: {
+      urbanKmL: 11.6,
+      highwayKmL: 11.4,
+    },
+    safety: {
+      airbagsCount: 6,
+      hasAdas: true,
+      hasBlindSpotAlert: true,
+      hasCamera360: true,
+    },
+    warrantyCosts: {
+      generalWarrantyYears: 5,
+      batteryWarrantyYears: 5,
+      ipvaAnnual: 4249.75, // 2.5% de R$ 169.990
+      insuranceAnnual: 4200.00,
+      revisions3Years: 2850.00,
+      consumption3Years: 13500.00,
     },
     comfortTech: {
       electricSeats: true,

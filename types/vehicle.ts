@@ -129,7 +129,9 @@ export interface Vehicle {
 }
 
 export interface UserPreferences {
-  isofixMinDistanceCm: number; // default 45
+  isofixMinDistanceCm: number; // default 45 (desclassifica se abaixo de 45cm)
+  maxStorePrice?: number; // default 200000 (desclassifica acima de R$ 200.000,00)
+  maxLengthMm?: number; // default 4500 (desclassifica muito acima de 4500mm)
   autoEliminateIncompatible: boolean;
   excludeBEV: boolean;
   
