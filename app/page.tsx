@@ -41,7 +41,6 @@ export default function Home() {
     applyScenario,
     resetToSeedData,
     importData,
-    syncToCloudNow,
   } = useCarMatchStore();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -73,11 +72,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const color = isDarkMode ? '#070e20' : '#f1f5f9';
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    // Dynamic theme-color meta to ensure status bar strictly matches the header
+    let metaTheme = document.querySelector('meta[name="theme-color"]:not([media])');
+    if (!metaTheme) {
+      metaTheme = document.createElement('meta');
+      metaTheme.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaTheme);
+    }
+    metaTheme.setAttribute('content', color);
   }, [isDarkMode]);
 
   // Ensure browser document title is strictly "Meu Próximo Carro"
@@ -262,8 +270,6 @@ export default function Home() {
             onApplyScenario={applyScenario}
             onResetSeedData={resetToSeedData}
             onOpenDataSync={() => setIsDataSyncOpen(true)}
-            onSyncToCloud={syncToCloudNow}
-            vehiclesCount={vehicles.length}
           />
         )}
       </main>

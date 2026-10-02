@@ -325,7 +325,7 @@ export async function parseVehiclesFromExcel(file: File): Promise<{
             id,
             brand,
             model,
-            version: String(row['Versão'] || '').replace(/\(Completa\)/gi, '').trim(),
+            version: String(row['Versão'] || '').replace(/\s*\(?completa\)?/gi, '').trim(),
             powertrain: (row['Motorização (HEV/PHEV/REEV/MHEV/BEV/Combustão)*'] || row['Motorização'] || 'PHEV') as PowertrainType,
             status: (row['Status*'] || row['Status'] || 'Quero visitar') as VehicleStatus,
             yearManufacture: parseNum(row['Ano Fabricação'] || row['Ano Fab.'], 2024),

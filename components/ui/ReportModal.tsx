@@ -87,7 +87,7 @@ export function ReportModal({
                 Relatório Analítico dos Finalistas
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Priorização familiar baseada em medições reais e TCO 5 anos
+                Priorização familiar baseada em medições reais e TCO 3 anos
               </p>
             </div>
           </div>
@@ -138,7 +138,7 @@ export function ReportModal({
               <div>
                 <span className="text-slate-500 dark:text-slate-400 block">Período TCO:</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {preferences.tcoYearsPeriod || 5} anos (IPVA {preferences.selectedState === 'BA' ? 'Bahia' : preferences.selectedState} {preferences.ipvaRatePercent ?? 3}%)
+                  {preferences.tcoYearsPeriod || 3} anos (IPVA {preferences.selectedState === 'BA' ? 'Bahia' : preferences.selectedState} {preferences.ipvaRatePercent ?? 2.5}%)
                 </span>
               </div>
             </div>

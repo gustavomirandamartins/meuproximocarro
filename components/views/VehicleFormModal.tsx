@@ -22,7 +22,6 @@ function createInitialVehicle(prefs?: UserPreferences): Vehicle {
     model: '',
     version: '',
     powertrain: 'PHEV',
-    motorizacaoDesc: '',
     status: 'Quero visitar',
     yearManufacture: new Date().getFullYear(),
     yearModel: new Date().getFullYear(),
@@ -130,7 +129,11 @@ export function VehicleFormModal({
       return;
     }
     setFormError(null);
-    onSave(formData);
+    const cleanedVehicle: Vehicle = {
+      ...formData,
+      version: (formData.version || '').replace(/\s*\(?completa\)?/gi, '').trim(),
+    };
+    onSave(cleanedVehicle);
     onClose();
   };
 
@@ -341,12 +344,15 @@ export function VehicleFormModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
-                    Versão
+                    Versão <span className="text-[10px] text-slate-400 font-normal">(sem o texto &ldquo;Completa&rdquo;)</span>
                   </label>
                   <input
                     type="text"
                     value={formData.version}
-                    onChange={(e) => setFormData({ ...formData, version: e.target.value })}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\s*\(?completa\)?/gi, '');
+                      setFormData({ ...formData, version: clean });
+                    }}
                     placeholder="Ex: DM-i 18.3 kWh, HEV2, Premium..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
@@ -356,27 +362,18 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Motorização
                   </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={formData.powertrain}
-                      onChange={(e) => setFormData({ ...formData, powertrain: e.target.value as PowertrainType })}
-                      className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none shrink-0"
-                    >
-                      <option value="PHEV">PHEV (Plug-in)</option>
-                      <option value="HEV">HEV (Híbrido)</option>
-                      <option value="REEV">REEV (Extensor)</option>
-                      <option value="MHEV">MHEV (Leve)</option>
-                      <option value="BEV">BEV (100% Elétrico)</option>
-                      <option value="Combustão">Combustão</option>
-                    </select>
-                    <input
-                      type="text"
-                      value={formData.motorizacaoDesc || ''}
-                      onChange={(e) => setFormData({ ...formData, motorizacaoDesc: e.target.value })}
-                      placeholder="Ex: 1.5 Turbo + Motor Elétrico"
-                      className="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
+                  <select
+                    value={formData.powertrain}
+                    onChange={(e) => setFormData({ ...formData, powertrain: e.target.value as PowertrainType })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="PHEV">PHEV (Plug-in)</option>
+                    <option value="HEV">HEV (Híbrido)</option>
+                    <option value="REEV">REEV (Extensor)</option>
+                    <option value="MHEV">MHEV (Leve)</option>
+                    <option value="BEV">BEV (100% Elétrico)</option>
+                    <option value="Combustão">Combustão</option>
+                  </select>
                 </div>
               </div>
 

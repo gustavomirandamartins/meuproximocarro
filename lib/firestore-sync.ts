@@ -158,6 +158,49 @@ export function subscribeToVehicles(
   };
 }
 
+// Subscribe to preferences document in real time
+export function subscribeToPreferences(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  onUpdate: (prefs: UserPreferences | null, activeScenarioId: string | null) => void,
+  onError?: (err: Error) => void
+) {
+  let unsubscribe: (() => void) | null = null;
+  let isCancelled = false;
+
+  ensureAuth()
+    .then(() => {
+      if (isCancelled) return;
+      const docRef = doc(db, 'workspaces', workspaceId, 'config', 'preferences');
+      unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            onUpdate(data as UserPreferences, data?.activeScenarioId || null);
+          } else {
+            onUpdate(null, null);
+          }
+        },
+        (error: any) => {
+          if (error?.code === 'permission-denied' || error?.message?.includes('permission')) {
+            handleFirestoreError(error, OperationType.GET, `workspaces/${workspaceId}/config/preferences`);
+          } else {
+            console.warn('Firestore preferences snapshot notice:', error);
+            if (onError) onError(error);
+          }
+        }
+      );
+    })
+    .catch((err) => {
+      console.warn('Auth initialization notice for preferences:', err);
+    });
+
+  return () => {
+    isCancelled = true;
+    if (unsubscribe) unsubscribe();
+  };
+}
+
 // Save single vehicle to Firestore
 export async function saveVehicleToFirestore(
   vehicle: Vehicle,
@@ -243,42 +286,5 @@ export async function syncLocalVehiclesToCloudIfEmpty(
     }
     console.warn('Notice checking local-to-cloud sync:', err);
     return false;
-  }
-}
-
-// Explicitly push and overwrite all vehicles in Firestore with the current platform data
-export async function pushAllLocalToCloud(
-  localVehicles: Vehicle[],
-  localPrefs: UserPreferences,
-  activeScenarioId?: string,
-  workspaceId: string = DEFAULT_WORKSPACE_ID
-): Promise<{ success: boolean; count: number; error?: string }> {
-  try {
-    await ensureAuth();
-    await ensureWorkspace(workspaceId);
-
-    const colRef = collection(db, 'workspaces', workspaceId, 'vehicles');
-    const existingSnap = await getDocs(colRef);
-    const newIds = new Set(localVehicles.map((v) => v.id));
-
-    // Delete existing documents in cloud that aren't in local list
-    for (const docSnap of existingSnap.docs) {
-      if (!newIds.has(docSnap.id)) {
-        await deleteDoc(doc(db, 'workspaces', workspaceId, 'vehicles', docSnap.id));
-      }
-    }
-
-    // Save all current local vehicles to cloud
-    for (const v of localVehicles) {
-      await saveVehicleToFirestore(v, workspaceId);
-    }
-
-    // Save preferences
-    await savePreferencesToFirestore(localPrefs, activeScenarioId, workspaceId);
-
-    return { success: true, count: localVehicles.length };
-  } catch (err: any) {
-    console.error('Error pushing data to cloud:', err);
-    return { success: false, count: 0, error: err?.message || String(err) };
   }
 }

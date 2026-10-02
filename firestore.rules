@@ -39,7 +39,7 @@ service cloud.firestore {
              data.gasolinePricePerLiter is number && data.gasolinePricePerLiter >= 0;
     }
 
-    // 3. Workspaces, Vehicles, and Preferences
+    // 3. Workspaces, Vehicles, and Preferences — Sincronização direta no Firebase
     match /workspaces/{workspaceId} {
       allow get, list: if isValidId(workspaceId);
       allow create, update: if isValidId(workspaceId) && isValidWorkspace(incoming());

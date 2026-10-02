@@ -11,6 +11,7 @@ import {
   getIsofixRating,
   formatNumber,
   formatMoney,
+  compareDimensions,
 } from '@/lib/calculations';
 import { StatusBadge, IsofixBadge } from '@/components/ui/StatusBadge';
 import { CalculationModal } from '@/components/ui/CalculationModal';
@@ -348,7 +349,7 @@ export function RankingView({
 
             <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
               <div className="flex justify-between font-bold text-slate-900 dark:text-white">
-                <span>TCO & Custos (5 Anos)</span>
+                <span>TCO & Custos (3 Anos)</span>
                 <span className="text-blue-600 dark:text-cyan-400 tabular-nums">
                   {preferences.weights.tco}%
                 </span>
@@ -668,6 +669,51 @@ export function RankingView({
                           </div>
                         </div>
 
+                        {/* Dimensões & Peso */}
+                        <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md text-xs shadow-2xs space-y-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                            Dimensões & Peso (vs Usado Cadastrado)
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                            <div>
+                              <span className="text-slate-500">Comp: </span>
+                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.lengthMm, 0)} mm</strong>
+                              {preferences.usedCar && (
+                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                  {compareDimensions(vehicle.familySpace.lengthMm, preferences.usedCar.lengthMm).text}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Larg: </span>
+                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.widthMm, 0)} mm</strong>
+                              {preferences.usedCar && (
+                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                  {compareDimensions(vehicle.familySpace.widthMm, preferences.usedCar.widthMm).text}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Entre-eixos: </span>
+                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.wheelbaseMm, 0)} mm</strong>
+                              {preferences.usedCar && (
+                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                  {compareDimensions(vehicle.familySpace.wheelbaseMm, preferences.usedCar.wheelbaseMm).text}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Peso: </span>
+                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.weightKg, 0)} kg</strong>
+                              {preferences.usedCar && (
+                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                  {compareDimensions(vehicle.familySpace.weightKg, preferences.usedCar.weightKg, 'kg').text}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Complementary Indicators */}
                         <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs shadow-2xs">
                           <div>
@@ -677,7 +723,7 @@ export function RankingView({
                             </span>
                           </div>
                           <div>
-                            <span className="text-slate-500 block text-[10px]">TCO 5a / Nota:</span>
+                            <span className="text-slate-500 block text-[10px]">TCO 3a / Nota:</span>
                             <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
                               R$ {(costBenefitTco).toFixed(0)} por ponto
                             </span>

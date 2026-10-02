@@ -350,6 +350,11 @@ export function DashboardView({
                         <div>
                           <span className="text-slate-500">Entre-eixos: </span>
                           <strong className="text-slate-900 dark:text-white">{formatNumber(vehicle.familySpace.wheelbaseMm, 0)} mm</strong>
+                          {usedCar && (
+                            <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                              {compareDimensions(vehicle.familySpace.wheelbaseMm, usedCar.wheelbaseMm).text}
+                            </span>
+                          )}
                         </div>
 
                         <div>

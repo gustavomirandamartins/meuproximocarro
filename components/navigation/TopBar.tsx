@@ -32,7 +32,7 @@ export function TopBar({
   onOpenDataSync,
 }: TopBarProps) {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/50 dark:border-white/10 bg-white/95 dark:bg-[#070e20]/95 backdrop-blur-2xl backdrop-saturate-180 pt-[env(safe-area-inset-top,0px)] shadow-[0_4px_30px_rgba(0,0,0,0.03),inset_0_-1px_0_0_rgba(255,255,255,0.4)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.35),inset_0_-1px_0_0_rgba(255,255,255,0.05)] transition-colors">
+    <header className="sticky top-0 z-40 w-full border-b border-white/50 dark:border-white/10 bg-slate-100/95 dark:bg-[#070e20]/95 backdrop-blur-2xl backdrop-saturate-180 pt-[env(safe-area-inset-top,0px)] shadow-[0_4px_30px_rgba(0,0,0,0.03),inset_0_-1px_0_0_rgba(255,255,255,0.4)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.35),inset_0_-1px_0_0_rgba(255,255,255,0.05)] transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-4">
         {/* Zone 1: Wordmark with official icon */}
         <div className="flex items-center gap-3">

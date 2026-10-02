@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useSyncExternalStore, useCallback, useEffect } from 'react';
-import { Vehicle, UserPreferences, ScenarioPreset } from '@/types/vehicle';
+import { Vehicle, UserPreferences, ScenarioPreset, RegisteredUsedCar } from '@/types/vehicle';
 import {
   INITIAL_VEHICLES,
   INITIAL_PREFERENCES,
@@ -13,14 +13,10 @@ import {
   deleteVehicleFromFirestore,
   savePreferencesToFirestore,
   subscribeToVehicles,
-  pushAllLocalToCloud,
+  subscribeToPreferences,
+  syncLocalVehiclesToCloudIfEmpty,
   DEFAULT_WORKSPACE_ID,
 } from './firestore-sync';
-
-const VEHICLES_STORAGE_KEY = 'meu_proximo_carro_vehicles_v4';
-const PREFERENCES_STORAGE_KEY = 'meu_proximo_carro_preferences_v4';
-const SCENARIO_STORAGE_KEY = 'meu_proximo_carro_scenario_v4';
-const USER_INITIALIZED_KEY = 'meu_proximo_carro_user_initialized_v4';
 
 export function normalizeVehicle(raw: any): Vehicle {
   const storePrice = raw.financial?.storePrice ?? raw.financial?.negotiatedPrice ?? raw.financial?.advertisedPrice ?? 0;
@@ -30,7 +26,6 @@ export function normalizeVehicle(raw: any): Vehicle {
     model: raw.model || '',
     version: (raw.version || '').replace(/\s*\(?completa\)?/gi, '').trim(),
     powertrain: raw.powertrain || 'PHEV',
-    motorizacaoDesc: raw.motorizacaoDesc || raw.fuel || '',
     status: raw.status || 'Quero visitar',
     yearManufacture: raw.yearManufacture || new Date().getFullYear(),
     yearModel: raw.yearModel || new Date().getFullYear(),
@@ -39,7 +34,7 @@ export function normalizeVehicle(raw: any): Vehicle {
     notes: raw.notes || '',
 
     financial: {
-      tablePrice: raw.financial?.tablePrice ?? storePrice,
+      tablePrice: raw.financial?.tablePrice ?? 0,
       storePrice,
       usedCarEvaluation: raw.financial?.usedCarEvaluation ?? 0,
       paymentConditions: Array.isArray(raw.financial?.paymentConditions) ? raw.financial.paymentConditions : [],
@@ -103,104 +98,6 @@ export function normalizeVehicle(raw: any): Vehicle {
   };
 }
 
-function getInitialVehicles(): Vehicle[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const isUserInitialized = localStorage.getItem(USER_INITIALIZED_KEY) === 'true';
-    const stored = localStorage.getItem(VEHICLES_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          return parsed.map(normalizeVehicle);
-        }
-      } catch {}
-    }
-
-    if (isUserInitialized) {
-      return [];
-    }
-
-    // Check candidate legacy keys
-    const candidateKeys = [
-      'carmatch_vehicles_v3',
-      'carmatch_vehicles_v2',
-      'carmatch_vehicles_v1',
-      'carmatch_vehicles',
-      'carmatch_vehicles_backup',
-    ];
-
-    for (const key of candidateKeys) {
-      const oldStored = localStorage.getItem(key);
-      if (oldStored) {
-        try {
-          const parsed = JSON.parse(oldStored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const valid = parsed.map(normalizeVehicle);
-            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(valid));
-            localStorage.setItem(USER_INITIALIZED_KEY, 'true');
-            return valid;
-          }
-        } catch {}
-      }
-    }
-  } catch (e) {
-    console.error('Failed reading vehicles from localStorage', e);
-  }
-  return INITIAL_VEHICLES;
-}
-
-function getInitialPreferences(): UserPreferences {
-  if (typeof window === 'undefined') return INITIAL_PREFERENCES;
-  try {
-    const candidateKeys = [
-      PREFERENCES_STORAGE_KEY,
-      'carmatch_preferences_v3',
-      'carmatch_preferences_v2',
-      'carmatch_preferences_v1',
-      'carmatch_preferences',
-    ];
-    for (const key of candidateKeys) {
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          parsed.selectedState = 'BA';
-          parsed.ipvaRatePercent = 2.5;
-          parsed.tcoYearsPeriod = 3;
-          if (!parsed.usedCar) {
-            parsed.usedCar = DEFAULT_USED_CAR;
-          }
-          localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(parsed));
-          return { ...INITIAL_PREFERENCES, ...parsed };
-        } catch {}
-      }
-    }
-  } catch (e) {
-    console.error('Failed reading preferences from localStorage', e);
-  }
-  return INITIAL_PREFERENCES;
-}
-
-function getInitialScenario(): string {
-  if (typeof window === 'undefined') return 'padrao_familiar';
-  try {
-    const candidateKeys = [
-      SCENARIO_STORAGE_KEY,
-      'carmatch_scenario_v3',
-      'carmatch_scenario_v2',
-      'carmatch_scenario_v1',
-    ];
-    for (const key of candidateKeys) {
-      const stored = localStorage.getItem(key);
-      if (stored) return stored;
-    }
-  } catch (e) {
-    console.error('Failed reading scenario from localStorage', e);
-  }
-  return 'padrao_familiar';
-}
-
 function subscribeToClient(callback: () => void) {
   return () => {};
 }
@@ -212,114 +109,107 @@ export function useCarMatchStore() {
     () => false
   );
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>(getInitialVehicles);
-  const [preferences, setPreferences] = useState<UserPreferences>(getInitialPreferences);
-  const [activeScenarioId, setActiveScenarioId] = useState<string>(getInitialScenario);
+  // State starts with seed data; Firestore real-time listener replaces it once connected
+  const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL_VEHICLES);
+  const [preferences, setPreferences] = useState<UserPreferences>(INITIAL_PREFERENCES);
+  const [activeScenarioId, setActiveScenarioId] = useState<string>('padrao_familiar');
+  const [firestoreReady, setFirestoreReady] = useState(false);
 
-  // Real-time Firestore sync
+  // Real-time Firestore subscription — Firestore is the single source of truth
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     let isSubscribed = true;
 
-    const unsubscribe = subscribeToVehicles(
+    // Push seed data to Firestore if cloud is empty (first-time setup)
+    syncLocalVehiclesToCloudIfEmpty(INITIAL_VEHICLES, INITIAL_PREFERENCES, 'padrao_familiar').catch(console.error);
+
+    // Real-time subscription to cloud vehicles — Firestore drives the UI
+    const unsubVehicles = subscribeToVehicles(
       DEFAULT_WORKSPACE_ID,
       (cloudVehicles) => {
         if (!isSubscribed) return;
-        if (cloudVehicles && cloudVehicles.length > 0) {
-          const normalized = cloudVehicles.map(normalizeVehicle);
-          setVehicles(normalized);
-          try {
-            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(normalized));
-            localStorage.setItem(USER_INITIALIZED_KEY, 'true');
-          } catch (e) {
-            console.error('Failed saving cloud vehicles to localStorage', e);
-          }
+        const normalized = cloudVehicles.map(normalizeVehicle);
+        setVehicles(normalized);
+        setFirestoreReady(true);
+      },
+      (err) => {
+        console.warn('Firestore vehicles subscription notice:', err);
+      }
+    );
+
+    // Real-time subscription to preferences
+    const unsubPrefs = subscribeToPreferences(
+      DEFAULT_WORKSPACE_ID,
+      (cloudPrefs, cloudScenarioId) => {
+        if (!isSubscribed) return;
+        if (cloudPrefs) {
+          setPreferences({
+            ...INITIAL_PREFERENCES,
+            ...cloudPrefs,
+            selectedState: 'BA',
+            ipvaRatePercent: 2.5,
+            tcoYearsPeriod: 3,
+            usedCar: cloudPrefs.usedCar || INITIAL_PREFERENCES.usedCar || DEFAULT_USED_CAR,
+          });
+        }
+        if (cloudScenarioId) {
+          setActiveScenarioId(cloudScenarioId);
         }
       },
       (err) => {
-        console.warn('Firestore subscription notice:', err);
+        console.warn('Firestore preferences subscription notice:', err);
       }
     );
 
     return () => {
       isSubscribed = false;
-      unsubscribe();
+      unsubVehicles();
+      unsubPrefs();
     };
   }, []);
 
-  // Save preferences
+  // Save preferences — writes directly to Firestore
   const savePreferences = useCallback(
     (newPrefs: UserPreferences) => {
       setPreferences(newPrefs);
-      try {
-        localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(newPrefs));
-      } catch (e) {
-        console.error('Failed to save preferences to localStorage', e);
-      }
       savePreferencesToFirestore(newPrefs, activeScenarioId).catch(console.error);
     },
     [activeScenarioId]
   );
 
-  // Upsert vehicle (add or edit)
+  // Upsert vehicle — writes directly to Firestore
   const upsertVehicle = useCallback((vehicle: Vehicle) => {
-    try {
-      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
-    } catch {}
-
     const now = new Date().toISOString();
     const updatedVehicle: Vehicle = normalizeVehicle({
       ...vehicle,
       createdAt: vehicle.createdAt || now,
       updatedAt: now,
     });
-
+    // Optimistic update
     setVehicles((prev) => {
-      const index = prev.findIndex((v) => v.id === updatedVehicle.id);
-      let updated: Vehicle[];
+      const index = prev.findIndex((v) => v.id === vehicle.id);
       if (index >= 0) {
-        updated = prev.map((v, i) => (i === index ? updatedVehicle : v));
-      } else {
-        updated = [updatedVehicle, ...prev];
+        const updated = [...prev];
+        updated[index] = updatedVehicle;
+        return updated;
       }
-      try {
-        localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to persist vehicle', e);
-      }
-      return updated;
+      return [updatedVehicle, ...prev];
     });
-
+    // Write to Firestore (real-time listener will confirm)
     saveVehicleToFirestore(updatedVehicle).catch(console.error);
   }, []);
 
-  // Delete vehicle
+  // Delete vehicle — deletes from Firestore
   const deleteVehicle = useCallback((id: string) => {
-    try {
-      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
-    } catch {}
-
-    setVehicles((prev) => {
-      const updated = prev.filter((v) => v.id !== id);
-      try {
-        localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to delete vehicle from storage', e);
-      }
-      return updated;
-    });
-
+    // Optimistic removal
+    setVehicles((prev) => prev.filter((v) => v.id !== id));
+    // Delete from Firestore
     deleteVehicleFromFirestore(id).catch(console.error);
   }, []);
 
   // Clear all vehicles
   const clearAllVehicles = useCallback(() => {
-    try {
-      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
-      localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify([]));
-    } catch {}
-
     setVehicles((prev) => {
       prev.forEach((v) => {
         deleteVehicleFromFirestore(v.id).catch(console.error);
@@ -328,22 +218,12 @@ export function useCarMatchStore() {
     });
   }, []);
 
-  // One-click function to replace all cloud/deployed data with the platform data
-  const syncToCloudNow = useCallback(async () => {
-    return await pushAllLocalToCloud(vehicles, preferences, activeScenarioId);
-  }, [vehicles, preferences, activeScenarioId]);
-
   // Apply a scenario
   const applyScenario = useCallback(
     (scenarioId: string) => {
       const preset = SCENARIO_PRESETS.find((s) => s.id === scenarioId);
       if (!preset) return;
       setActiveScenarioId(scenarioId);
-      try {
-        localStorage.setItem(SCENARIO_STORAGE_KEY, scenarioId);
-      } catch (e) {
-        console.error('Failed to save scenario', e);
-      }
 
       setPreferences((prev) => {
         const updated: UserPreferences = {
@@ -353,32 +233,25 @@ export function useCarMatchStore() {
           gasolinePricePerLiter: preset.gasolinePrice,
           electricityPricePerKwh: preset.electricityPrice,
         };
-        try {
-          localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(updated));
-        } catch (e) {
-          console.error('Failed to save updated prefs', e);
-        }
+        savePreferencesToFirestore(updated, scenarioId).catch(console.error);
         return updated;
       });
     },
     []
   );
 
-  // Reset to initial seed data (only when user explicitly requests)
+  // Reset to initial seed data
   const resetToSeedData = useCallback(() => {
-    try {
-      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
-      localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(INITIAL_VEHICLES));
-      localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(INITIAL_PREFERENCES));
-      localStorage.setItem(SCENARIO_STORAGE_KEY, 'padrao_familiar');
-    } catch (e) {
-      console.error('Failed to reset storage', e);
-    }
+    // Clear existing vehicles from Firestore
+    vehicles.forEach((v) => deleteVehicleFromFirestore(v.id).catch(console.error));
+
+    // Save seed data to Firestore
     setVehicles(INITIAL_VEHICLES);
     setPreferences(INITIAL_PREFERENCES);
     setActiveScenarioId('padrao_familiar');
-    pushAllLocalToCloud(INITIAL_VEHICLES, INITIAL_PREFERENCES, 'padrao_familiar').catch(console.error);
-  }, []);
+    INITIAL_VEHICLES.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
+    savePreferencesToFirestore(INITIAL_PREFERENCES, 'padrao_familiar').catch(console.error);
+  }, [vehicles]);
 
   // Export full snapshot
   const exportData = useCallback(() => {
@@ -415,38 +288,22 @@ export function useCarMatchStore() {
 
         const normalizedVehicles = parsed.vehicles.map(normalizeVehicle);
 
-        try {
-          localStorage.setItem(USER_INITIALIZED_KEY, 'true');
-        } catch {}
-
+        let finalVehicles: Vehicle[];
         if (mode === 'replace') {
-          setVehicles(normalizedVehicles);
-          try {
-            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(normalizedVehicles));
-          } catch (e) {
-            console.error('Failed to save imported vehicles', e);
-          }
-          // Push entire replacement to cloud, cleaning up old vehicles
-          pushAllLocalToCloud(
-            normalizedVehicles,
-            parsed.preferences || preferences,
-            parsed.activeScenarioId || activeScenarioId
-          ).catch(console.error);
+          // Delete old vehicles from Firestore
+          vehicles.forEach((v) => deleteVehicleFromFirestore(v.id).catch(console.error));
+          finalVehicles = normalizedVehicles;
         } else {
           // Merge by ID or add new
           const map = new Map<string, Vehicle>();
           vehicles.forEach((v) => map.set(v.id, v));
           normalizedVehicles.forEach((v) => map.set(v.id, v));
-          const merged = Array.from(map.values());
-
-          setVehicles(merged);
-          try {
-            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(merged));
-          } catch (e) {
-            console.error('Failed to save imported vehicles', e);
-          }
-          merged.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
+          finalVehicles = Array.from(map.values());
         }
+
+        setVehicles(finalVehicles);
+        // Push all vehicles to Firestore
+        finalVehicles.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
 
         if (parsed.preferences) {
           const mergedPrefs: UserPreferences = {
@@ -458,19 +315,11 @@ export function useCarMatchStore() {
             usedCar: parsed.preferences.usedCar || preferences.usedCar || DEFAULT_USED_CAR,
           };
           setPreferences(mergedPrefs);
-          try {
-            localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(mergedPrefs));
-          } catch (e) {
-            console.error('Failed to save imported preferences', e);
-          }
           savePreferencesToFirestore(mergedPrefs, parsed.activeScenarioId || activeScenarioId).catch(console.error);
         }
 
         if (parsed.activeScenarioId) {
           setActiveScenarioId(parsed.activeScenarioId);
-          try {
-            localStorage.setItem(SCENARIO_STORAGE_KEY, parsed.activeScenarioId);
-          } catch (e) {}
         }
 
         return { success: true, count: normalizedVehicles.length };
@@ -492,7 +341,6 @@ export function useCarMatchStore() {
     upsertVehicle,
     deleteVehicle,
     clearAllVehicles,
-    syncToCloudNow,
     applyScenario,
     resetToSeedData,
     exportData,

@@ -44,7 +44,6 @@ export interface Vehicle {
   model: string;
   version: string; // Versão (sem o texto "Completa")
   powertrain: PowertrainType; // Motorização
-  motorizacaoDesc?: string;
   status: VehicleStatus;
   yearManufacture: number;
   yearModel: number;
