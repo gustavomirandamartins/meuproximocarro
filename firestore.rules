@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Helper Functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Health check endpoint for connection validation
+    match /test/{testId} {
+      allow read: if true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidWorkspace(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 128;
+    }
+
+    function isValidVehicle(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.brand is string && data.brand.size() <= 100 &&
+             data.model is string && data.model.size() <= 100 &&
+             data.yearModel is number && data.yearModel >= 1990 && data.yearModel <= 2050 &&
+             data.powertrain is string;
+    }
+
+    function isValidPreferences(data) {
+      return data.annualKm is number && data.annualKm >= 0 &&
+             data.urbanSharePercent is number && data.urbanSharePercent >= 0 && data.urbanSharePercent <= 100 &&
+             data.gasolinePricePerLiter is number && data.gasolinePricePerLiter >= 0;
+    }
+
+    // 3. Workspaces, Vehicles, and Preferences
+    match /workspaces/{workspaceId} {
+      allow get, list: if isValidId(workspaceId);
+      allow create, update: if isValidId(workspaceId) && isValidWorkspace(incoming());
+      allow delete: if isValidId(workspaceId);
+
+      match /vehicles/{vehicleId} {
+        allow get, list: if isValidId(workspaceId);
+        allow create, update: if isValidId(workspaceId) && isValidId(vehicleId) && isValidVehicle(incoming());
+        allow delete: if isValidId(workspaceId) && isValidId(vehicleId);
+      }
+
+      match /config/{configId} {
+        allow get, list: if isValidId(workspaceId);
+        allow create, update: if isValidId(workspaceId) && isValidId(configId) && isValidPreferences(incoming());
+        allow delete: if isValidId(workspaceId) && isValidId(configId);
+      }
+    }
+  }
+}

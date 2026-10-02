@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "Workspace": {
+      "title": "Workspace",
+      "description": "Espaço de trabalho familiar compartilhado contendo veículos e configurações de decisão de compra",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identificador único do workspace"
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome da família ou do workspace"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de criação ISO 8601"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de última atualização ISO 8601"
+        }
+      },
+      "required": ["id", "name", "createdAt", "updatedAt"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Veículo avaliado pela família no processo de decisão",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identificador único do veículo"
+        },
+        "brand": {
+          "type": "string",
+          "description": "Marca ou fabricante do veículo"
+        },
+        "model": {
+          "type": "string",
+          "description": "Modelo do veículo"
+        },
+        "yearModel": {
+          "type": "number",
+          "description": "Ano do modelo"
+        },
+        "powertrain": {
+          "type": "string",
+          "description": "Tipo de motorização híbrida ou combustão"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de última modificação"
+        }
+      },
+      "required": ["id", "brand", "model", "yearModel", "powertrain"]
+    },
+    "Preferences": {
+      "title": "Preferences",
+      "description": "Preferências de uso, quilometragem anual, custos de combustível e pesos analíticos",
+      "type": "object",
+      "properties": {
+        "annualKm": {
+          "type": "number",
+          "description": "Quilometragem anual estimada"
+        },
+        "urbanSharePercent": {
+          "type": "number",
+          "description": "Porcentagem de trajeto urbano"
+        },
+        "gasolinePricePerLiter": {
+          "type": "number",
+          "description": "Preço da gasolina por litro"
+        },
+        "electricityPricePerKwh": {
+          "type": "number",
+          "description": "Preço da eletricidade por kWh"
+        },
+        "activeScenarioId": {
+          "type": "string",
+          "description": "Identificador do cenário ativo"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de atualização"
+        }
+      },
+      "required": ["annualKm", "urbanSharePercent", "gasolinePricePerLiter"]
+    }
+  },
+  "firestore": {
+    "/workspaces/{workspaceId}": {
+      "schema": "Workspace",
+      "description": "Metadados do espaço compartilhado da família"
+    },
+    "/workspaces/{workspaceId}/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Veículos em avaliação pertencentes ao workspace"
+    },
+    "/workspaces/{workspaceId}/config/{configId}": {
+      "schema": "Preferences",
+      "description": "Configurações e preferências analíticas da família"
+    }
+  }
+}

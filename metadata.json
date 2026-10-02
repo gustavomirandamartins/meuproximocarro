@@ -1,0 +1,8 @@
+{
+  "name": "Meu Próximo Carro",
+  "description": "Ferramenta analítica e comparativa para decisão familiar de compra automotiva na Bahia com foco em híbridos, espaço traseiro ISOFIX e TCO.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Meu Próximo Carro",
+  "short_name": "Meu Próximo Carro",
+  "description": "Ferramenta analítica e comparativa para decisão familiar de compra automotiva com foco em híbridos, espaço traseiro ISOFIX e TCO.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070e20",
+  "theme_color": "#070e20",
+  "icons": [
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-carmatch.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}
