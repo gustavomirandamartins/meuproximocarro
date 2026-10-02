@@ -41,6 +41,7 @@ export default function Home() {
     applyScenario,
     resetToSeedData,
     importData,
+    syncToCloudNow,
   } = useCarMatchStore();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -261,6 +262,8 @@ export default function Home() {
             onApplyScenario={applyScenario}
             onResetSeedData={resetToSeedData}
             onOpenDataSync={() => setIsDataSyncOpen(true)}
+            onSyncToCloud={syncToCloudNow}
+            vehiclesCount={vehicles.length}
           />
         )}
       </main>

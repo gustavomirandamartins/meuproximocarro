@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useSyncExternalStore, useCallback, useEffect } from 'react';
-import { Vehicle, UserPreferences, ScenarioPreset, RegisteredUsedCar } from '@/types/vehicle';
+import { Vehicle, UserPreferences, ScenarioPreset } from '@/types/vehicle';
 import {
   INITIAL_VEHICLES,
   INITIAL_PREFERENCES,
@@ -13,44 +13,14 @@ import {
   deleteVehicleFromFirestore,
   savePreferencesToFirestore,
   subscribeToVehicles,
-  syncLocalVehiclesToCloudIfEmpty,
+  pushAllLocalToCloud,
   DEFAULT_WORKSPACE_ID,
 } from './firestore-sync';
 
 const VEHICLES_STORAGE_KEY = 'meu_proximo_carro_vehicles_v4';
 const PREFERENCES_STORAGE_KEY = 'meu_proximo_carro_preferences_v4';
 const SCENARIO_STORAGE_KEY = 'meu_proximo_carro_scenario_v4';
-const DELETED_IDS_KEY = 'meu_proximo_carro_deleted_ids';
-
-function getDeletedIds(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
-  try {
-    const raw = localStorage.getItem(DELETED_IDS_KEY);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return new Set(arr);
-    }
-  } catch {}
-  return new Set();
-}
-
-function addDeletedId(id: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    const current = getDeletedIds();
-    current.add(id);
-    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(Array.from(current)));
-  } catch {}
-}
-
-function removeDeletedId(id: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    const current = getDeletedIds();
-    current.delete(id);
-    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(Array.from(current)));
-  } catch {}
-}
+const USER_INITIALIZED_KEY = 'meu_proximo_carro_user_initialized_v4';
 
 export function normalizeVehicle(raw: any): Vehicle {
   const storePrice = raw.financial?.storePrice ?? raw.financial?.negotiatedPrice ?? raw.financial?.advertisedPrice ?? 0;
@@ -69,7 +39,7 @@ export function normalizeVehicle(raw: any): Vehicle {
     notes: raw.notes || '',
 
     financial: {
-      tablePrice: raw.financial?.tablePrice ?? 0,
+      tablePrice: raw.financial?.tablePrice ?? storePrice,
       storePrice,
       usedCarEvaluation: raw.financial?.usedCarEvaluation ?? 0,
       paymentConditions: Array.isArray(raw.financial?.paymentConditions) ? raw.financial.paymentConditions : [],
@@ -134,12 +104,25 @@ export function normalizeVehicle(raw: any): Vehicle {
 }
 
 function getInitialVehicles(): Vehicle[] {
-  if (typeof window === 'undefined') return INITIAL_VEHICLES;
+  if (typeof window === 'undefined') return [];
   try {
-    const deleted = getDeletedIds();
-    // Check all possible local storage keys to recover user data without erasing it
+    const isUserInitialized = localStorage.getItem(USER_INITIALIZED_KEY) === 'true';
+    const stored = localStorage.getItem(VEHICLES_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed.map(normalizeVehicle);
+        }
+      } catch {}
+    }
+
+    if (isUserInitialized) {
+      return [];
+    }
+
+    // Check candidate legacy keys
     const candidateKeys = [
-      VEHICLES_STORAGE_KEY,
       'carmatch_vehicles_v3',
       'carmatch_vehicles_v2',
       'carmatch_vehicles_v1',
@@ -148,23 +131,17 @@ function getInitialVehicles(): Vehicle[] {
     ];
 
     for (const key of candidateKeys) {
-      const stored = localStorage.getItem(key);
-      if (stored) {
+      const oldStored = localStorage.getItem(key);
+      if (oldStored) {
         try {
-          const parsed = JSON.parse(stored);
+          const parsed = JSON.parse(oldStored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const valid = parsed
-              .filter((v: any) => v && v.id && !deleted.has(v.id))
-              .map(normalizeVehicle);
-            if (valid.length > 0) {
-              localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(valid));
-              localStorage.setItem('carmatch_vehicles_backup', JSON.stringify(valid));
-              return valid;
-            }
+            const valid = parsed.map(normalizeVehicle);
+            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(valid));
+            localStorage.setItem(USER_INITIALIZED_KEY, 'true');
+            return valid;
           }
-        } catch (e) {
-          console.warn('Failed parsing stored vehicles from', key, e);
-        }
+        } catch {}
       }
     }
   } catch (e) {
@@ -239,56 +216,25 @@ export function useCarMatchStore() {
   const [preferences, setPreferences] = useState<UserPreferences>(getInitialPreferences);
   const [activeScenarioId, setActiveScenarioId] = useState<string>(getInitialScenario);
 
-  // Real-time Firestore sync & initial local data push
+  // Real-time Firestore sync
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     let isSubscribed = true;
 
-    // 1. Initial push if cloud is empty but local has vehicles
-    const local = getInitialVehicles();
-    const localPrefs = getInitialPreferences();
-    const localScenario = getInitialScenario();
-
-    if (local.length > 0) {
-      syncLocalVehiclesToCloudIfEmpty(local, localPrefs, localScenario).catch(console.error);
-    }
-
-    // 2. Real-time subscription to cloud vehicles
-    // CRITICAL: We MERGE cloud vehicles with local vehicles so that locally registered
-    // vehicles are NEVER clobbered, erased, or reverted by incoming snapshots!
     const unsubscribe = subscribeToVehicles(
       DEFAULT_WORKSPACE_ID,
       (cloudVehicles) => {
         if (!isSubscribed) return;
         if (cloudVehicles && cloudVehicles.length > 0) {
-          const deleted = getDeletedIds();
-          setVehicles((prev) => {
-            const map = new Map<string, Vehicle>();
-
-            // Cloud vehicles (only if not deleted by the user)
-            cloudVehicles.forEach((cv) => {
-              if (!deleted.has(cv.id)) {
-                map.set(cv.id, normalizeVehicle(cv));
-              }
-            });
-
-            // Local vehicles take priority and MUST NEVER be deleted by cloud snapshot
-            prev.forEach((lv) => {
-              if (!deleted.has(lv.id)) {
-                map.set(lv.id, lv);
-              }
-            });
-
-            const merged = Array.from(map.values());
-            try {
-              localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(merged));
-              localStorage.setItem('carmatch_vehicles_backup', JSON.stringify(merged));
-            } catch (e) {
-              console.error('Failed saving merged vehicles to localStorage', e);
-            }
-            return merged;
-          });
+          const normalized = cloudVehicles.map(normalizeVehicle);
+          setVehicles(normalized);
+          try {
+            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(normalized));
+            localStorage.setItem(USER_INITIALIZED_KEY, 'true');
+          } catch (e) {
+            console.error('Failed saving cloud vehicles to localStorage', e);
+          }
         }
       },
       (err) => {
@@ -300,19 +246,6 @@ export function useCarMatchStore() {
       isSubscribed = false;
       unsubscribe();
     };
-  }, []);
-
-  // Save vehicles
-  const saveVehicles = useCallback((newVehicles: Vehicle[]) => {
-    const normalized = newVehicles.map(normalizeVehicle);
-    setVehicles(normalized);
-    try {
-      localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(normalized));
-      localStorage.setItem('carmatch_vehicles_backup', JSON.stringify(normalized));
-    } catch (e) {
-      console.error('Failed to save vehicles to localStorage', e);
-    }
-    normalized.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
   }, []);
 
   // Save preferences
@@ -329,68 +262,76 @@ export function useCarMatchStore() {
     [activeScenarioId]
   );
 
-  // Upsert vehicle (add or edit) - ALWAYS saves locally immediately and pushes to cloud
+  // Upsert vehicle (add or edit)
   const upsertVehicle = useCallback((vehicle: Vehicle) => {
-    removeDeletedId(vehicle.id);
+    try {
+      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
+    } catch {}
+
+    const now = new Date().toISOString();
+    const updatedVehicle: Vehicle = normalizeVehicle({
+      ...vehicle,
+      createdAt: vehicle.createdAt || now,
+      updatedAt: now,
+    });
+
     setVehicles((prev) => {
-      const index = prev.findIndex((v) => v.id === vehicle.id);
+      const index = prev.findIndex((v) => v.id === updatedVehicle.id);
       let updated: Vehicle[];
-      const now = new Date().toISOString();
-      const updatedVehicle: Vehicle = normalizeVehicle({
-        ...vehicle,
-        createdAt: vehicle.createdAt || now,
-        updatedAt: now,
-      });
       if (index >= 0) {
-        updated = [...prev];
-        updated[index] = updatedVehicle;
+        updated = prev.map((v, i) => (i === index ? updatedVehicle : v));
       } else {
         updated = [updatedVehicle, ...prev];
       }
       try {
         localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(updated));
-        localStorage.setItem('carmatch_vehicles_backup', JSON.stringify(updated));
       } catch (e) {
         console.error('Failed to persist vehicle', e);
       }
-      // Asynchronously push to Firestore without blocking UI
-      saveVehicleToFirestore(updatedVehicle).catch(console.error);
       return updated;
     });
+
+    saveVehicleToFirestore(updatedVehicle).catch(console.error);
   }, []);
 
-  // Delete vehicle - records deleted ID so it is NEVER restored by cloud snapshots
+  // Delete vehicle
   const deleteVehicle = useCallback((id: string) => {
-    addDeletedId(id);
+    try {
+      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
+    } catch {}
+
     setVehicles((prev) => {
       const updated = prev.filter((v) => v.id !== id);
       try {
         localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(updated));
-        localStorage.setItem('carmatch_vehicles_backup', JSON.stringify(updated));
       } catch (e) {
         console.error('Failed to delete vehicle from storage', e);
       }
-      deleteVehicleFromFirestore(id).catch(console.error);
       return updated;
     });
+
+    deleteVehicleFromFirestore(id).catch(console.error);
   }, []);
 
   // Clear all vehicles
   const clearAllVehicles = useCallback(() => {
+    try {
+      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
+      localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify([]));
+    } catch {}
+
     setVehicles((prev) => {
       prev.forEach((v) => {
-        addDeletedId(v.id);
         deleteVehicleFromFirestore(v.id).catch(console.error);
       });
-      try {
-        localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify([]));
-        localStorage.setItem('carmatch_vehicles_backup', JSON.stringify([]));
-      } catch (e) {
-        console.error('Failed to clear vehicles', e);
-      }
       return [];
     });
   }, []);
+
+  // One-click function to replace all cloud/deployed data with the platform data
+  const syncToCloudNow = useCallback(async () => {
+    return await pushAllLocalToCloud(vehicles, preferences, activeScenarioId);
+  }, [vehicles, preferences, activeScenarioId]);
 
   // Apply a scenario
   const applyScenario = useCallback(
@@ -423,12 +364,11 @@ export function useCarMatchStore() {
     []
   );
 
-  // Reset to initial seed data
+  // Reset to initial seed data (only when user explicitly requests)
   const resetToSeedData = useCallback(() => {
     try {
-      localStorage.removeItem(DELETED_IDS_KEY);
+      localStorage.setItem(USER_INITIALIZED_KEY, 'true');
       localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(INITIAL_VEHICLES));
-      localStorage.setItem('carmatch_vehicles_backup', JSON.stringify(INITIAL_VEHICLES));
       localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(INITIAL_PREFERENCES));
       localStorage.setItem(SCENARIO_STORAGE_KEY, 'padrao_familiar');
     } catch (e) {
@@ -437,8 +377,7 @@ export function useCarMatchStore() {
     setVehicles(INITIAL_VEHICLES);
     setPreferences(INITIAL_PREFERENCES);
     setActiveScenarioId('padrao_familiar');
-    INITIAL_VEHICLES.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
-    savePreferencesToFirestore(INITIAL_PREFERENCES, 'padrao_familiar').catch(console.error);
+    pushAllLocalToCloud(INITIAL_VEHICLES, INITIAL_PREFERENCES, 'padrao_familiar').catch(console.error);
   }, []);
 
   // Export full snapshot
@@ -476,27 +415,38 @@ export function useCarMatchStore() {
 
         const normalizedVehicles = parsed.vehicles.map(normalizeVehicle);
 
-        let finalVehicles: Vehicle[];
+        try {
+          localStorage.setItem(USER_INITIALIZED_KEY, 'true');
+        } catch {}
+
         if (mode === 'replace') {
-          finalVehicles = normalizedVehicles;
+          setVehicles(normalizedVehicles);
+          try {
+            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(normalizedVehicles));
+          } catch (e) {
+            console.error('Failed to save imported vehicles', e);
+          }
+          // Push entire replacement to cloud, cleaning up old vehicles
+          pushAllLocalToCloud(
+            normalizedVehicles,
+            parsed.preferences || preferences,
+            parsed.activeScenarioId || activeScenarioId
+          ).catch(console.error);
         } else {
           // Merge by ID or add new
           const map = new Map<string, Vehicle>();
           vehicles.forEach((v) => map.set(v.id, v));
           normalizedVehicles.forEach((v) => map.set(v.id, v));
-          finalVehicles = Array.from(map.values());
-        }
+          const merged = Array.from(map.values());
 
-        setVehicles(finalVehicles);
-        try {
-          localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(finalVehicles));
-          localStorage.setItem('carmatch_vehicles_backup', JSON.stringify(finalVehicles));
-        } catch (e) {
-          console.error('Failed to save imported vehicles', e);
+          setVehicles(merged);
+          try {
+            localStorage.setItem(VEHICLES_STORAGE_KEY, JSON.stringify(merged));
+          } catch (e) {
+            console.error('Failed to save imported vehicles', e);
+          }
+          merged.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
         }
-
-        // Push imported vehicles to cloud
-        finalVehicles.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
 
         if (parsed.preferences) {
           const mergedPrefs: UserPreferences = {
@@ -538,11 +488,11 @@ export function useCarMatchStore() {
     preferences,
     activeScenarioId,
     scenarios: SCENARIO_PRESETS,
-    saveVehicles,
     savePreferences,
     upsertVehicle,
     deleteVehicle,
     clearAllVehicles,
+    syncToCloudNow,
     applyScenario,
     resetToSeedData,
     exportData,

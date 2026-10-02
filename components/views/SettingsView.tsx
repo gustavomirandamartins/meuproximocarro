@@ -14,6 +14,9 @@ import {
   AlertTriangle,
   Zap,
   FileSpreadsheet,
+  CloudUpload,
+  CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -23,6 +26,8 @@ interface SettingsViewProps {
   onApplyScenario: (scenarioId: string) => void;
   onResetSeedData: () => void;
   onOpenDataSync?: () => void;
+  onSyncToCloud?: () => Promise<{ success: boolean; count: number; error?: string }>;
+  vehiclesCount?: number;
 }
 
 export function SettingsView({
@@ -32,10 +37,14 @@ export function SettingsView({
   onApplyScenario,
   onResetSeedData,
   onOpenDataSync,
+  onSyncToCloud,
+  vehiclesCount = 0,
 }: SettingsViewProps) {
   const [prefs, setPrefs] = useState<UserPreferences>(preferences);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [cloudSyncMessage, setCloudSyncMessage] = useState<string | null>(null);
 
   // Calculate sum of weights
   const weightsSum =
@@ -613,7 +622,63 @@ export function SettingsView({
         </div>
       </section>
 
-      {/* 5. PLANILHA EXCEL (EXPORTAÇÃO & IMPORTAÇÃO) */}
+      {/* 5. SINCRONIZAÇÃO NUVEM COM A VERSÃO DEPLOYADA */}
+      {onSyncToCloud && (
+        <section className="p-5 sm:p-6 rounded-3xl border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/30 backdrop-blur-2xl backdrop-saturate-180 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_12px_36px_rgba(16,185,129,0.08),inset_0_1px_0_0_rgba(255,255,255,0.7)]">
+          <div>
+            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <CloudUpload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Sincronizar com a Versão Publicada (Nuvem Firestore)</span>
+            </h3>
+            <p className="text-slate-600 dark:text-slate-300 text-[11px] mt-0.5 max-w-xl">
+              Garante que todos os veículos ({vehiclesCount}) e configurações cadastrados nesta plataforma substituam os dados da versão publicada em nuvem imediatamente.
+            </p>
+            {cloudSyncMessage && (
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mt-2 flex items-center gap-1.5 animate-in fade-in">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{cloudSyncMessage}</span>
+              </p>
+            )}
+          </div>
+
+          <button
+            onClick={async () => {
+              if (isSyncingCloud) return;
+              setIsSyncingCloud(true);
+              setCloudSyncMessage(null);
+              try {
+                const res = await onSyncToCloud();
+                if (res.success) {
+                  setCloudSyncMessage(`✅ ${res.count} veículo(s) enviados com sucesso para a versão publicada!`);
+                } else {
+                  setCloudSyncMessage(`Erro: ${res.error || 'Falha ao sincronizar'}`);
+                }
+              } catch (e: any) {
+                setCloudSyncMessage(`Erro: ${e.message}`);
+              } finally {
+                setIsSyncingCloud(false);
+                setTimeout(() => setCloudSyncMessage(null), 6000);
+              }
+            }}
+            disabled={isSyncingCloud}
+            className="px-4 py-2.5 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-[0_4px_16px_rgba(16,185,129,0.25),inset_0_1px_0_0_rgba(255,255,255,0.3)] flex items-center gap-2 cursor-pointer self-start sm:self-auto shrink-0 transition-all backdrop-blur-xl disabled:opacity-50"
+          >
+            {isSyncingCloud ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Enviando para a Nuvem...</span>
+              </>
+            ) : (
+              <>
+                <CloudUpload className="w-4 h-4" />
+                <span>Substituir Dados da Versão Publicada</span>
+              </>
+            )}
+          </button>
+        </section>
+      )}
+
+      {/* 6. PLANILHA EXCEL (EXPORTAÇÃO & IMPORTAÇÃO) */}
       {onOpenDataSync && (
         <section className="p-5 sm:p-6 rounded-3xl border border-blue-200/60 dark:border-blue-800/40 bg-blue-50/60 dark:bg-blue-950/30 backdrop-blur-2xl backdrop-saturate-180 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_12px_36px_rgba(37,99,235,0.08),inset_0_1px_0_0_rgba(255,255,255,0.7)]">
           <div>
