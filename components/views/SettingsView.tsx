@@ -609,15 +609,29 @@ export function SettingsView({
           </div>
         </div>
 
-        {/* Informações Complementares de Desempenho, Consumo & Custos */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+        {/* Informações Complementares de Desempenho, Autonomia, Segurança, Consumo & Custos */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
           <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Porta-Malas (L)</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Potência (cv)</label>
             <PtBrNumberInput
-              value={prefs.usedCar?.trunkVolumeLiters}
+              value={prefs.usedCar?.powerHp}
               onChange={(val) => setPrefs({
                 ...prefs,
-                usedCar: { ...prefs.usedCar, trunkVolumeLiters: val },
+                usedCar: { ...prefs.usedCar, powerHp: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Torque (kgfm)</label>
+            <PtBrNumberInput
+              allowDecimals
+              decimalPlaces={1}
+              value={prefs.usedCar?.torqueKgfm}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, torqueKgfm: val },
               })}
               className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
             />
@@ -638,19 +652,43 @@ export function SettingsView({
           </div>
 
           <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Potência (cv)</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Autonomia (km)</label>
             <PtBrNumberInput
-              value={prefs.usedCar?.powerHp}
+              value={prefs.usedCar?.totalRangeKm}
               onChange={(val) => setPrefs({
                 ...prefs,
-                usedCar: { ...prefs.usedCar, powerHp: val },
+                usedCar: { ...prefs.usedCar, totalRangeKm: val },
               })}
               className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
             />
           </div>
 
           <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Consumo (Gasolina) Urbano</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Porta-Malas (L)</label>
+            <PtBrNumberInput
+              value={prefs.usedCar?.trunkVolumeLiters}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, trunkVolumeLiters: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Quantidade de Airbags</label>
+            <PtBrNumberInput
+              value={prefs.usedCar?.airbagsCount}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, airbagsCount: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Consumo Urbano (km/l)</label>
             <PtBrNumberInput
               allowDecimals
               decimalPlaces={1}
@@ -664,7 +702,7 @@ export function SettingsView({
           </div>
 
           <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Consumo (Gasolina) Estrada</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Consumo Estrada (km/l)</label>
             <PtBrNumberInput
               allowDecimals
               decimalPlaces={1}
@@ -677,7 +715,7 @@ export function SettingsView({
             />
           </div>
 
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">TCO 3 Anos (R$)</label>
             <PtBrNumberInput
               isCurrency

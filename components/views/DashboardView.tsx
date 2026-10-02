@@ -407,6 +407,36 @@ export function DashboardView({
                           </div>
 
                           <div>
+                            <span className="text-slate-500">Torque: </span>
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm</strong>
+                            {usedCar.torqueKgfm && (
+                              <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                {compareDimensions(vehicle.powertrainSpec.torqueKgfm, usedCar.torqueKgfm, 'kgfm').text}
+                              </span>
+                            )}
+                          </div>
+
+                          <div>
+                            <span className="text-slate-500">Autonomia: </span>
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalRangeKm ? `${vehicle.powertrainSpec.totalRangeKm} km` : '—'}</strong>
+                            {usedCar.totalRangeKm && vehicle.powertrainSpec.totalRangeKm > 0 && (
+                              <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                {compareDimensions(vehicle.powertrainSpec.totalRangeKm, usedCar.totalRangeKm, 'km').text}
+                              </span>
+                            )}
+                          </div>
+
+                          <div>
+                            <span className="text-slate-500">Airbags: </span>
+                            <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.safety.airbagsCount}</strong>
+                            {usedCar.airbagsCount && (
+                              <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                {compareDimensions(vehicle.safety.airbagsCount, usedCar.airbagsCount, 'airbags').text}
+                              </span>
+                            )}
+                          </div>
+
+                          <div>
                             <span className="text-slate-500">Consumo Urbano: </span>
                             <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.urbanKmL} km/l</strong>
                             {usedCar.urbanGasolineKmL && (

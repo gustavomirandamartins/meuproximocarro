@@ -408,6 +408,11 @@ export function ComparisonView({
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
                       {formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm
+                      {usedCar?.torqueKgfm && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
+                          {compareDimensions(vehicle.powertrainSpec.torqueKgfm, usedCar.torqueKgfm, 'kgfm').text}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -422,6 +427,22 @@ export function ComparisonView({
                       {usedCar?.zeroToHundredSeconds && (
                         <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
                           {compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's').text}
+                        </span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              )}
+
+              {(!onlyDifferences || hasDiff((i) => i.vehicle.powertrainSpec.totalRangeKm)) && (
+                <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
+                  <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Autonomia Total</td>
+                  {calculatedMap.map(({ vehicle }) => (
+                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                      {vehicle.powertrainSpec.totalRangeKm ? `${vehicle.powertrainSpec.totalRangeKm} km` : '—'}
+                      {usedCar?.totalRangeKm && vehicle.powertrainSpec.totalRangeKm > 0 && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
+                          {compareDimensions(vehicle.powertrainSpec.totalRangeKm, usedCar.totalRangeKm, 'km').text}
                         </span>
                       )}
                     </td>
@@ -483,8 +504,13 @@ export function ComparisonView({
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Airbags</td>
                   {calculatedMap.map(({ vehicle }) => (
-                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800">
-                      {vehicle.safety.airbagsCount} airbags
+                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                      <strong>{vehicle.safety.airbagsCount} airbags</strong>
+                      {usedCar?.airbagsCount && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
+                          {compareDimensions(vehicle.safety.airbagsCount, usedCar.airbagsCount, 'airbags').text}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>

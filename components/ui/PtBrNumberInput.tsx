@@ -89,6 +89,38 @@ export function PtBrNumberInput({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    if (!pastedText) return;
+
+    if (allowNull) {
+      const parsed = parsePtBrNullableNumber(pastedText);
+      if (parsed !== null) {
+        if (isCurrency) {
+          setLocalText(formatMoney(parsed));
+        } else if (allowDecimals) {
+          setLocalText(formatNumber(parsed, decimalPlaces));
+        } else {
+          setLocalText(formatNumber(parsed, 0));
+        }
+      } else {
+        setLocalText(pastedText);
+      }
+      onChange(parsed);
+    } else {
+      const parsed = parsePtBrNumber(pastedText, 0);
+      if (isCurrency) {
+        setLocalText(formatMoney(parsed));
+      } else if (allowDecimals) {
+        setLocalText(formatNumber(parsed, decimalPlaces));
+      } else {
+        setLocalText(formatNumber(parsed, 0));
+      }
+      onChange(parsed);
+    }
+  };
+
   const handleBlur = () => {
     setIsFocused(false);
     const trimmed = localText.trim();
@@ -121,6 +153,7 @@ export function PtBrNumberInput({
       value={displayValue}
       onFocus={handleFocus}
       onChange={handleChange}
+      onPaste={handlePaste}
       onBlur={handleBlur}
       className={className}
       placeholder=""

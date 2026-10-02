@@ -36,6 +36,9 @@ export interface RegisteredUsedCar {
   trunkVolumeLiters?: number; // Volume Porta-Malas (L)
   zeroToHundredSeconds?: number; // 0-100 km/h (s)
   powerHp?: number; // Potência (cv)
+  torqueKgfm?: number; // Torque (kgfm)
+  totalRangeKm?: number; // Autonomia total (km)
+  airbagsCount?: number; // Quantidade de airbags
   urbanGasolineKmL?: number; // Consumo (Gasolina) Urbano / Cidade (km/l)
   highwayGasolineKmL?: number; // Consumo (Gasolina) Estrada / Rodovia (km/l)
   tco3Years?: number; // TCO 3 anos (R$)

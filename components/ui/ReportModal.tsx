@@ -186,19 +186,19 @@ export function ReportModal({
                   <div className="p-3 bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5 backdrop-blur-md rounded-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4)]">
                     <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Preço da Loja:</span>
                     <span className="font-bold text-slate-900 dark:text-white tabular-nums">
-                      R$ {vehicle.financial.storePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R$ {formatMoney(vehicle.financial.storePrice)}
                     </span>
                   </div>
                   <div className="p-3 bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5 backdrop-blur-md rounded-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4)]">
                     <span className="text-slate-500 dark:text-slate-400 block text-[11px]">TCO 3 Anos:</span>
                     <span className="font-bold text-slate-900 dark:text-white tabular-nums">
-                      R$ {tco.totalTCO.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R$ {formatMoney(tco.totalTCO)}
                     </span>
                   </div>
                   <div className="p-3 bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5 backdrop-blur-md rounded-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4)]">
                     <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Custo Mensal TCO:</span>
                     <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      R$ {tco.monthlyTCO.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / mês
+                      R$ {formatMoney(tco.monthlyTCO)} / mês
                     </span>
                   </div>
                 </div>
