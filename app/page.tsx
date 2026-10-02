@@ -34,6 +34,7 @@ export default function Home() {
     preferences,
     activeScenarioId,
     isHydrated,
+    firestoreReady,
     scenarios,
     upsertVehicle,
     deleteVehicle,
@@ -48,6 +49,7 @@ export default function Home() {
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [isDataSyncOpen, setIsDataSyncOpen] = useState<boolean>(false);
   const [vehicleToEdit, setVehicleToEdit] = useState<Vehicle | null>(null);
+  const [formInstanceId, setFormInstanceId] = useState<number>(0);
   const [activeDealershipVehicleId, setActiveDealershipVehicleId] = useState<string | undefined>(undefined);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -134,6 +136,7 @@ export default function Home() {
 
   const handleOpenNewVehicle = () => {
     setVehicleToEdit(null);
+    setFormInstanceId((prev) => prev + 1);
     setIsFormOpen(true);
   };
 
@@ -149,10 +152,10 @@ export default function Home() {
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId);
 
-  // Hydration fallback skeleton
-  if (!isHydrated) {
+  // Hydration & Firestore readiness fallback skeleton
+  if (!isHydrated || !firestoreReady) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#070e20] flex items-center justify-center p-6">
         <div className="space-y-3 text-center">
           <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto" />
           <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase">
@@ -173,7 +176,7 @@ export default function Home() {
         <div className="absolute -bottom-32 right-1/4 w-[32rem] h-[32rem] rounded-full bg-blue-800/18 dark:bg-blue-900/25 blur-3xl" />
       </div>
 
-      {/* Top Bar Navigation */}
+      {/* Top Bar Navigation - Fixed Header passing page content underneath */}
       <TopBar
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -186,7 +189,7 @@ export default function Home() {
 
       {/* Floating Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-16 right-4 sm:right-6 z-50 p-4 rounded-2xl bg-slate-900/90 text-white dark:bg-white/90 dark:text-slate-900 shadow-[0_12px_36px_rgba(0,0,0,0.25),inset_0_1px_0_0_rgba(255,255,255,0.2)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5),inset_0_1px_0_0_rgba(255,255,255,0.9)] border border-white/20 dark:border-white/40 backdrop-blur-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 max-w-md">
+        <div className="fixed top-18 sm:top-20 right-4 sm:right-6 z-50 p-4 rounded-2xl bg-slate-900/90 text-white dark:bg-white/90 dark:text-slate-900 shadow-[0_12px_36px_rgba(0,0,0,0.25),inset_0_1px_0_0_rgba(255,255,255,0.2)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5),inset_0_1px_0_0_rgba(255,255,255,0.9)] border border-white/20 dark:border-white/40 backdrop-blur-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 max-w-md">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 dark:text-emerald-600 shrink-0" />
           <span className="text-xs font-semibold">{toastMessage}</span>
           <button
@@ -198,8 +201,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Main View Area */}
-      <main className="flex-1 pb-20 md:pb-8">
+      {/* Main View Area - starts cleanly below fixed header and glides behind it when scrolling */}
+      <main className="flex-1 pt-18 sm:pt-20 pb-20 md:pb-8">
         {activeTab === 'dashboard' && (
           <DashboardView
             vehicles={vehicles}
@@ -279,8 +282,9 @@ export default function Home() {
 
       {/* Progressive Form Modal for adding/editing vehicles */}
       <VehicleFormModal
-        key={vehicleToEdit ? vehicleToEdit.id : (isFormOpen ? 'new-form' : 'closed')}
+        key={vehicleToEdit ? vehicleToEdit.id : (isFormOpen ? `new-form-${formInstanceId}` : 'closed')}
         vehicleToEdit={vehicleToEdit}
+        preferences={preferences}
         isOpen={isFormOpen}
         onClose={() => {
           setIsFormOpen(false);

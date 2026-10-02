@@ -714,18 +714,85 @@ export function RankingView({
                           </div>
                         </div>
 
+                        {/* Desempenho, Consumo & Porta-malas vs Usado */}
+                        {preferences.usedCar && (
+                          <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md text-xs shadow-2xs space-y-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                              Desempenho, Consumo & Capacidade (vs Usado Cadastrado)
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-[11px]">
+                              <div>
+                                <span className="text-slate-500">Porta-Malas: </span>
+                                <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.trunk.volumeLiters} L</strong>
+                                {preferences.usedCar.trunkVolumeLiters && (
+                                  <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                    {compareDimensions(vehicle.trunk.volumeLiters, preferences.usedCar.trunkVolumeLiters, 'L').text}
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <span className="text-slate-500">0-100 km/h: </span>
+                                <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.zeroToHundredSeconds} s</strong>
+                                {preferences.usedCar.zeroToHundredSeconds && (
+                                  <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                    {compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, preferences.usedCar.zeroToHundredSeconds, 's').text}
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Potência: </span>
+                                <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalPowerHp} cv</strong>
+                                {preferences.usedCar.powerHp && (
+                                  <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                    {compareDimensions(vehicle.powertrainSpec.totalPowerHp, preferences.usedCar.powerHp, 'cv').text}
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Consumo Urbano: </span>
+                                <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.urbanKmL} km/l</strong>
+                                {preferences.usedCar.urbanGasolineKmL && (
+                                  <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                    {compareDimensions(vehicle.consumption.urbanKmL, preferences.usedCar.urbanGasolineKmL, 'km/l').text}
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Consumo Estrada: </span>
+                                <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.highwayKmL} km/l</strong>
+                                {preferences.usedCar.highwayGasolineKmL && (
+                                  <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
+                                    {compareDimensions(vehicle.consumption.highwayKmL, preferences.usedCar.highwayGasolineKmL, 'km/l').text}
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <span className="text-slate-500">TCO 3 Anos: </span>
+                                <strong className="text-slate-900 dark:text-white tabular-nums">R$ {formatMoney(tco.totalTCO)}</strong>
+                                {preferences.usedCar.tco3Years && (
+                                  <span className={`block text-[9px] font-medium ${tco.totalTCO <= preferences.usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                    {tco.totalTCO <= preferences.usedCar.tco3Years
+                                      ? `- R$ ${formatMoney(preferences.usedCar.tco3Years - tco.totalTCO)} vs usado`
+                                      : `+ R$ ${formatMoney(tco.totalTCO - preferences.usedCar.tco3Years)} vs usado`}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Complementary Indicators */}
                         <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs shadow-2xs">
                           <div>
                             <span className="text-slate-500 block text-[10px]">Preço Efetivo / Nota:</span>
                             <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                              R$ {(costBenefitPrice).toFixed(0)} por ponto
+                              R$ {formatMoney(costBenefitPrice)} por ponto
                             </span>
                           </div>
                           <div>
                             <span className="text-slate-500 block text-[10px]">TCO 3a / Nota:</span>
                             <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                              R$ {(costBenefitTco).toFixed(0)} por ponto
+                              R$ {formatMoney(costBenefitTco)} por ponto
                             </span>
                           </div>
                           <div>

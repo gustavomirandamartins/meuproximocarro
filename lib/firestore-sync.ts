@@ -255,36 +255,3 @@ export async function savePreferencesToFirestore(
   }
 }
 
-// Automatic seed/sync from local storage if cloud workspace is empty
-export async function syncLocalVehiclesToCloudIfEmpty(
-  localVehicles: Vehicle[],
-  localPrefs: UserPreferences,
-  activeScenarioId: string,
-  workspaceId: string = DEFAULT_WORKSPACE_ID
-): Promise<boolean> {
-  if (!localVehicles || localVehicles.length === 0) return false;
-
-  try {
-    await ensureAuth();
-    const colRef = collection(db, 'workspaces', workspaceId, 'vehicles');
-    const existing = await getDocs(colRef);
-
-    if (existing.empty) {
-      await ensureWorkspace(workspaceId);
-
-      for (const v of localVehicles) {
-        await saveVehicleToFirestore(v, workspaceId);
-      }
-
-      await savePreferencesToFirestore(localPrefs, activeScenarioId, workspaceId);
-      return true;
-    }
-    return false;
-  } catch (err: any) {
-    if (err?.code === 'permission-denied' || err?.message?.includes('permission')) {
-      handleFirestoreError(err, OperationType.GET, `workspaces/${workspaceId}/vehicles`);
-    }
-    console.warn('Notice checking local-to-cloud sync:', err);
-    return false;
-  }
-}

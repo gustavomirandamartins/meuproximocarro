@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Vehicle, PowertrainType, VehicleStatus, UserPreferences, PaymentCondition } from '@/types/vehicle';
 import { formatMoney, formatNumber, calculatePaymentOption, compareDimensions, checkElimination } from '@/lib/calculations';
+import { PtBrNumberInput } from '@/components/ui/PtBrNumberInput';
 import { X, ArrowRight, ArrowLeft, Check, Plus, Trash2, Calculator, Info, AlertTriangle } from 'lucide-react';
 
 interface VehicleFormModalProps {
@@ -14,8 +15,6 @@ interface VehicleFormModalProps {
 }
 
 function createInitialVehicle(prefs?: UserPreferences): Vehicle {
-  const storePrice = 220000;
-  const ipvaRate = (prefs?.ipvaRatePercent ?? 2.5) / 100;
   return {
     id: `vehicle-${Date.now()}`,
     brand: '',
@@ -23,68 +22,70 @@ function createInitialVehicle(prefs?: UserPreferences): Vehicle {
     version: '',
     powertrain: 'PHEV',
     status: 'Quero visitar',
-    yearManufacture: new Date().getFullYear(),
-    yearModel: new Date().getFullYear(),
+    yearManufacture: 0,
+    yearModel: 0,
     dealership: '',
     sellerName: '',
     notes: '',
 
     financial: {
-      tablePrice: storePrice,
-      storePrice: storePrice,
-      usedCarEvaluation: prefs?.usedCar?.fipeValue ? Math.round(prefs.usedCar.fipeValue * 0.85) : 0,
+      tablePrice: 0,
+      storePrice: 0,
+      usedCarEvaluation: 0,
       paymentConditions: [],
     },
 
     familySpace: {
-      isofixDistanceCm: null, // Deixado em branco até medição presencial
+      isofixDistanceCm: null, // Em branco até medição presencial
       passengerCapacity: 5,
-      lengthMm: 4600,
-      widthMm: 1850,
-      wheelbaseMm: 2700,
-      weightKg: 1650,
+      lengthMm: 0,
+      widthMm: 0,
+      wheelbaseMm: 0,
+      weightKg: 0,
     },
 
     trunk: {
-      volumeLiters: 500,
+      volumeLiters: 0,
       spareTireKit: 'Kit reparo',
-      electricTailgate: true,
+      electricTailgate: false,
     },
 
     powertrainSpec: {
-      totalPowerHp: 200,
-      torqueKgfm: 35.0,
-      zeroToHundredSeconds: 8.0,
-      totalRangeKm: 1000,
+      totalPowerHp: 0,
+      torqueKgfm: 0,
+      zeroToHundredSeconds: 0,
+      totalRangeKm: 0,
       drivetrain: 'FWD',
-      batteryKwh: 18.0,
-      electricRangeKm: 90,
+      batteryKwh: 0,
+      electricRangeKm: 0,
     },
 
     consumption: {
-      urbanKmL: 15.0,
-      highwayKmL: 13.0,
+      urbanKmL: 0,
+      highwayKmL: 0,
     },
+
     safety: {
-      airbagsCount: 6,
-      hasAdas: true,
-      hasBlindSpotAlert: true,
-      hasCamera360: true,
+      airbagsCount: 0,
+      hasAdas: false,
+      hasBlindSpotAlert: false,
+      hasCamera360: false,
     },
 
     warrantyCosts: {
-      generalWarrantyYears: 5,
-      batteryWarrantyYears: 8,
-      ipvaAnnual: Math.round(storePrice * ipvaRate),
-      insuranceAnnual: Math.round(storePrice * 0.035),
-      revisions3Years: 3200,
-      consumption3Years: 12000,
+      generalWarrantyYears: 0,
+      batteryWarrantyYears: 0,
+      ipvaAnnual: 0,
+      insuranceAnnual: 0,
+      revisions3Years: 0,
+      consumption3Years: 0,
     },
+
     comfortTech: {
-      electricSeats: true,
-      rearAirVents: true,
-      carPlayWireless: true,
-      panoramicSunroof: true,
+      electricSeats: false,
+      rearAirVents: false,
+      carPlayWireless: false,
+      panoramicSunroof: false,
     },
 
     createdAt: new Date().toISOString(),
@@ -129,8 +130,11 @@ export function VehicleFormModal({
       return;
     }
     setFormError(null);
+    const currentYear = new Date().getFullYear();
     const cleanedVehicle: Vehicle = {
       ...formData,
+      yearManufacture: formData.yearManufacture || currentYear,
+      yearModel: formData.yearModel || currentYear,
       version: (formData.version || '').replace(/\s*\(?completa\)?/gi, '').trim(),
     };
     onSave(cleanedVehicle);
@@ -321,7 +325,6 @@ export function VehicleFormModal({
                     required
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    placeholder="Ex: BYD, GWM, Toyota, Volvo..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -335,7 +338,6 @@ export function VehicleFormModal({
                     required
                     value={formData.model}
                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                    placeholder="Ex: Song Plus, Haval H6, Corolla Cross..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -353,7 +355,6 @@ export function VehicleFormModal({
                       const clean = e.target.value.replace(/\s*\(?completa\)?/gi, '');
                       setFormData({ ...formData, version: clean });
                     }}
-                    placeholder="Ex: DM-i 18.3 kWh, HEV2, Premium..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -401,10 +402,9 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Ano Fabricação
                   </label>
-                  <input
-                    type="number"
+                  <PtBrNumberInput
                     value={formData.yearManufacture}
-                    onChange={(e) => setFormData({ ...formData, yearManufacture: Number(e.target.value) })}
+                    onChange={(val) => setFormData({ ...formData, yearManufacture: val })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -413,10 +413,9 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Ano Modelo
                   </label>
-                  <input
-                    type="number"
+                  <PtBrNumberInput
                     value={formData.yearModel}
-                    onChange={(e) => setFormData({ ...formData, yearModel: Number(e.target.value) })}
+                    onChange={(val) => setFormData({ ...formData, yearModel: val })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -431,7 +430,6 @@ export function VehicleFormModal({
                     type="text"
                     value={formData.dealership}
                     onChange={(e) => setFormData({ ...formData, dealership: e.target.value })}
-                    placeholder="Ex: BYD Parvi Salvador, GWM Morena..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -444,7 +442,6 @@ export function VehicleFormModal({
                     type="text"
                     value={formData.sellerName || ''}
                     onChange={(e) => setFormData({ ...formData, sellerName: e.target.value })}
-                    placeholder="Ex: Carlos Oliveira"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -462,15 +459,13 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Preço de Tabela (R$)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.financial.tablePrice || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    isCurrency
+                    value={formData.financial.tablePrice}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      financial: { ...formData.financial, tablePrice: Number(e.target.value) },
+                      financial: { ...formData.financial, tablePrice: val },
                     })}
-                    placeholder="0,00"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -479,12 +474,10 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Preço da Loja (R$) *
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.financial.storePrice || ''}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
+                  <PtBrNumberInput
+                    isCurrency
+                    value={formData.financial.storePrice}
+                    onChange={(val) => {
                       const ipvaBA = Math.round(val * ((preferences?.ipvaRatePercent ?? 2.5) / 100));
                       setFormData({
                         ...formData,
@@ -492,7 +485,6 @@ export function VehicleFormModal({
                         warrantyCosts: { ...formData.warrantyCosts, ipvaAnnual: ipvaBA },
                       });
                     }}
-                    placeholder="0,00"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold text-emerald-600 dark:text-emerald-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -538,15 +530,13 @@ export function VehicleFormModal({
                   <label className="block text-slate-700 dark:text-slate-300 mb-1 font-medium">
                     Proposta de Avaliação da Concessionária para o seu Usado (R$)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.financial.usedCarEvaluation || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    isCurrency
+                    value={formData.financial.usedCarEvaluation}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      financial: { ...formData.financial, usedCarEvaluation: Number(e.target.value) },
+                      financial: { ...formData.financial, usedCarEvaluation: val },
                     })}
-                    placeholder="0,00"
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
@@ -590,7 +580,6 @@ export function VehicleFormModal({
                             value={cond.name}
                             onChange={(e) => handleUpdatePaymentCondition(idx, { name: e.target.value })}
                             className="font-bold text-slate-900 dark:text-white text-xs bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 focus:outline-none focus:border-blue-500"
-                            placeholder="Nome da opção (ex: Entrada 50% + 24x)"
                           />
                           <button
                             type="button"
@@ -605,21 +594,19 @@ export function VehicleFormModal({
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div>
                             <label className="block text-[11px] text-slate-500 mb-0.5">Valor da Entrada (R$)</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={cond.downPayment || ''}
-                              onChange={(e) => handleUpdatePaymentCondition(idx, { downPayment: Number(e.target.value) })}
+                            <PtBrNumberInput
+                              isCurrency
+                              value={cond.downPayment}
+                              onChange={(val) => handleUpdatePaymentCondition(idx, { downPayment: val })}
                               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                             />
                           </div>
 
                           <div>
                             <label className="block text-[11px] text-slate-500 mb-0.5">Prazo (Meses)</label>
-                            <input
-                              type="number"
+                            <PtBrNumberInput
                               value={cond.months}
-                              onChange={(e) => handleUpdatePaymentCondition(idx, { months: Number(e.target.value) })}
+                              onChange={(val) => handleUpdatePaymentCondition(idx, { months: val })}
                               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                             />
                           </div>
@@ -669,12 +656,12 @@ export function VehicleFormModal({
                               <label className="block text-[11px] text-slate-500 mb-0.5">
                                 {cond.mode === 'RATE_TO_INSTALLMENT' ? 'Taxa de Juros Mensal (% a.m.)' : 'Taxa Calculada (% a.m.)'}
                               </label>
-                              <input
-                                type="number"
-                                step="0.01"
+                              <PtBrNumberInput
+                                allowDecimals
+                                decimalPlaces={2}
                                 disabled={cond.mode === 'INSTALLMENT_TO_RATE'}
                                 value={cond.monthlyRatePercent}
-                                onChange={(e) => handleUpdatePaymentCondition(idx, { monthlyRatePercent: Number(e.target.value) })}
+                                onChange={(val) => handleUpdatePaymentCondition(idx, { monthlyRatePercent: val })}
                                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-cyan-400"
                               />
                             </div>
@@ -683,12 +670,11 @@ export function VehicleFormModal({
                               <label className="block text-[11px] text-slate-500 mb-0.5">
                                 {cond.mode === 'RATE_TO_INSTALLMENT' ? 'Parcela Calculada (R$)' : 'Valor da Parcela (R$)'}
                               </label>
-                              <input
-                                type="number"
-                                step="0.01"
+                              <PtBrNumberInput
+                                isCurrency
                                 disabled={cond.mode === 'RATE_TO_INSTALLMENT'}
                                 value={cond.installmentValue}
-                                onChange={(e) => handleUpdatePaymentCondition(idx, { installmentValue: Number(e.target.value) })}
+                                onChange={(val) => handleUpdatePaymentCondition(idx, { installmentValue: val })}
                                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-emerald-400"
                               />
                             </div>
@@ -743,18 +729,15 @@ export function VehicleFormModal({
                     </label>
                     <span className="text-[10px] text-slate-400">Pode ficar em branco</span>
                   </div>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.familySpace.isofixDistanceCm ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? null : Number(e.target.value);
-                      setFormData({
-                        ...formData,
-                        familySpace: { ...formData.familySpace, isofixDistanceCm: val },
-                      });
-                    }}
-                    placeholder="Deixar em branco (medir no local)"
+                  <PtBrNumberInput
+                    allowNull
+                    allowDecimals
+                    decimalPlaces={1}
+                    value={formData.familySpace.isofixDistanceCm}
+                    onChange={(val) => setFormData({
+                      ...formData,
+                      familySpace: { ...formData.familySpace, isofixDistanceCm: val },
+                    })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                   <p className="text-[10px] text-slate-500 mt-1">
@@ -802,12 +785,11 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       Comprimento (mm)
                     </label>
-                    <input
-                      type="number"
-                      value={formData.familySpace.lengthMm || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      value={formData.familySpace.lengthMm}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        familySpace: { ...formData.familySpace, lengthMm: Number(e.target.value) },
+                        familySpace: { ...formData.familySpace, lengthMm: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                     />
@@ -822,12 +804,11 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       Largura (mm)
                     </label>
-                    <input
-                      type="number"
-                      value={formData.familySpace.widthMm || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      value={formData.familySpace.widthMm}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        familySpace: { ...formData.familySpace, widthMm: Number(e.target.value) },
+                        familySpace: { ...formData.familySpace, widthMm: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                     />
@@ -842,12 +823,11 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       Entre-eixos (mm)
                     </label>
-                    <input
-                      type="number"
-                      value={formData.familySpace.wheelbaseMm || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      value={formData.familySpace.wheelbaseMm}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        familySpace: { ...formData.familySpace, wheelbaseMm: Number(e.target.value) },
+                        familySpace: { ...formData.familySpace, wheelbaseMm: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                     />
@@ -862,12 +842,11 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       Peso (kg)
                     </label>
-                    <input
-                      type="number"
-                      value={formData.familySpace.weightKg || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      value={formData.familySpace.weightKg}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        familySpace: { ...formData.familySpace, weightKg: Number(e.target.value) },
+                        familySpace: { ...formData.familySpace, weightKg: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                     />
@@ -891,15 +870,19 @@ export function VehicleFormModal({
                 <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                   Volume do Porta-malas (Litros)
                 </label>
-                <input
-                  type="number"
-                  value={formData.trunk.volumeLiters || ''}
-                  onChange={(e) => setFormData({
+                <PtBrNumberInput
+                  value={formData.trunk.volumeLiters}
+                  onChange={(val) => setFormData({
                     ...formData,
-                    trunk: { ...formData.trunk, volumeLiters: Number(e.target.value) },
+                    trunk: { ...formData.trunk, volumeLiters: val },
                   })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
+                {usedCar?.trunkVolumeLiters && (
+                  <p className="text-[10px] text-blue-600 dark:text-cyan-400 mt-1 font-medium">
+                    {compareDimensions(formData.trunk.volumeLiters, usedCar.trunkVolumeLiters, 'L').text}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -953,28 +936,32 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Potência Total (cv)
                   </label>
-                  <input
-                    type="number"
-                    value={formData.powertrainSpec.totalPowerHp || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    value={formData.powertrainSpec.totalPowerHp}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      powertrainSpec: { ...formData.powertrainSpec, totalPowerHp: Number(e.target.value) },
+                      powertrainSpec: { ...formData.powertrainSpec, totalPowerHp: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
+                  {usedCar?.powerHp && (
+                    <p className="text-[10px] text-blue-600 dark:text-cyan-400 mt-1 font-medium">
+                      {compareDimensions(formData.powertrainSpec.totalPowerHp, usedCar.powerHp, 'cv').text}
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Torque (kgfm)
                   </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.powertrainSpec.torqueKgfm || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    allowDecimals
+                    decimalPlaces={1}
+                    value={formData.powertrainSpec.torqueKgfm}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      powertrainSpec: { ...formData.powertrainSpec, torqueKgfm: Number(e.target.value) },
+                      powertrainSpec: { ...formData.powertrainSpec, torqueKgfm: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
@@ -984,16 +971,21 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     0-100 km/h (s)
                   </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.powertrainSpec.zeroToHundredSeconds || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    allowDecimals
+                    decimalPlaces={1}
+                    value={formData.powertrainSpec.zeroToHundredSeconds}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      powertrainSpec: { ...formData.powertrainSpec, zeroToHundredSeconds: Number(e.target.value) },
+                      powertrainSpec: { ...formData.powertrainSpec, zeroToHundredSeconds: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
+                  {usedCar?.zeroToHundredSeconds && (
+                    <p className="text-[10px] text-blue-600 dark:text-cyan-400 mt-1 font-medium">
+                      {compareDimensions(formData.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's').text}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1002,12 +994,11 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Autonomia Total (km)
                   </label>
-                  <input
-                    type="number"
-                    value={formData.powertrainSpec.totalRangeKm || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    value={formData.powertrainSpec.totalRangeKm}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      powertrainSpec: { ...formData.powertrainSpec, totalRangeKm: Number(e.target.value) },
+                      powertrainSpec: { ...formData.powertrainSpec, totalRangeKm: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
@@ -1043,15 +1034,14 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                       Capacidade da Bateria (kWh)
                     </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={formData.powertrainSpec.batteryKwh || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      allowDecimals
+                      decimalPlaces={1}
+                      value={formData.powertrainSpec.batteryKwh}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        powertrainSpec: { ...formData.powertrainSpec, batteryKwh: Number(e.target.value) },
+                        powertrainSpec: { ...formData.powertrainSpec, batteryKwh: val },
                       })}
-                      placeholder="Ex: 18.3"
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                     />
                   </div>
@@ -1060,14 +1050,12 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                       Autonomia Elétrica (km)
                     </label>
-                    <input
-                      type="number"
-                      value={formData.powertrainSpec.electricRangeKm || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      value={formData.powertrainSpec.electricRangeKm}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        powertrainSpec: { ...formData.powertrainSpec, electricRangeKm: Number(e.target.value) },
+                        powertrainSpec: { ...formData.powertrainSpec, electricRangeKm: val },
                       })}
-                      placeholder="Ex: 105"
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                     />
                   </div>
@@ -1086,44 +1074,53 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Consumo Cidade (km/l)
                   </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.consumption.urbanKmL || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    allowDecimals
+                    decimalPlaces={1}
+                    value={formData.consumption.urbanKmL}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      consumption: { ...formData.consumption, urbanKmL: Number(e.target.value) },
+                      consumption: { ...formData.consumption, urbanKmL: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
+                  {usedCar?.urbanGasolineKmL && (
+                    <p className="text-[10px] text-blue-600 dark:text-cyan-400 mt-1 font-medium">
+                      {compareDimensions(formData.consumption.urbanKmL, usedCar.urbanGasolineKmL, 'km/l').text}
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Consumo Estrada (km/l)
                   </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.consumption.highwayKmL || ''}
-                    onChange={(e) => setFormData({
+                  <PtBrNumberInput
+                    allowDecimals
+                    decimalPlaces={1}
+                    value={formData.consumption.highwayKmL}
+                    onChange={(val) => setFormData({
                       ...formData,
-                      consumption: { ...formData.consumption, highwayKmL: Number(e.target.value) },
+                      consumption: { ...formData.consumption, highwayKmL: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
+                  {usedCar?.highwayGasolineKmL && (
+                    <p className="text-[10px] text-blue-600 dark:text-cyan-400 mt-1 font-medium">
+                      {compareDimensions(formData.consumption.highwayKmL, usedCar.highwayGasolineKmL, 'km/l').text}
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Quantidade de Airbags
                   </label>
-                  <input
-                    type="number"
+                  <PtBrNumberInput
                     value={formData.safety.airbagsCount}
-                    onChange={(e) => setFormData({
+                    onChange={(val) => setFormData({
                       ...formData,
-                      safety: { ...formData.safety, airbagsCount: Number(e.target.value) },
+                      safety: { ...formData.safety, airbagsCount: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
@@ -1198,12 +1195,11 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Garantia Geral (Anos)
                   </label>
-                  <input
-                    type="number"
+                  <PtBrNumberInput
                     value={formData.warrantyCosts.generalWarrantyYears}
-                    onChange={(e) => setFormData({
+                    onChange={(val) => setFormData({
                       ...formData,
-                      warrantyCosts: { ...formData.warrantyCosts, generalWarrantyYears: Number(e.target.value) },
+                      warrantyCosts: { ...formData.warrantyCosts, generalWarrantyYears: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
@@ -1213,12 +1209,11 @@ export function VehicleFormModal({
                   <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                     Garantia da Bateria (Anos)
                   </label>
-                  <input
-                    type="number"
+                  <PtBrNumberInput
                     value={formData.warrantyCosts.batteryWarrantyYears}
-                    onChange={(e) => setFormData({
+                    onChange={(val) => setFormData({
                       ...formData,
-                      warrantyCosts: { ...formData.warrantyCosts, batteryWarrantyYears: Number(e.target.value) },
+                      warrantyCosts: { ...formData.warrantyCosts, batteryWarrantyYears: val },
                     })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                   />
@@ -1236,13 +1231,12 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       IPVA Anual (R$) (Bahia: 2,5%)
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.warrantyCosts.ipvaAnnual || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      isCurrency
+                      value={formData.warrantyCosts.ipvaAnnual}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        warrantyCosts: { ...formData.warrantyCosts, ipvaAnnual: Number(e.target.value) },
+                        warrantyCosts: { ...formData.warrantyCosts, ipvaAnnual: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                     />
@@ -1252,13 +1246,12 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       Seguro Anual Estimado (R$)
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.warrantyCosts.insuranceAnnual || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      isCurrency
+                      value={formData.warrantyCosts.insuranceAnnual}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        warrantyCosts: { ...formData.warrantyCosts, insuranceAnnual: Number(e.target.value) },
+                        warrantyCosts: { ...formData.warrantyCosts, insuranceAnnual: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                     />
@@ -1268,13 +1261,12 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       Revisões Acumuladas em 3 Anos (R$)
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.warrantyCosts.revisions3Years || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      isCurrency
+                      value={formData.warrantyCosts.revisions3Years}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        warrantyCosts: { ...formData.warrantyCosts, revisions3Years: Number(e.target.value) },
+                        warrantyCosts: { ...formData.warrantyCosts, revisions3Years: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                     />
@@ -1284,13 +1276,12 @@ export function VehicleFormModal({
                     <label className="block text-slate-600 dark:text-slate-400 mb-0.5 font-medium">
                       Consumo 3 Anos (Combustível + Eletricidade) (R$)
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.warrantyCosts.consumption3Years || ''}
-                      onChange={(e) => setFormData({
+                    <PtBrNumberInput
+                      isCurrency
+                      value={formData.warrantyCosts.consumption3Years}
+                      onChange={(val) => setFormData({
                         ...formData,
-                        warrantyCosts: { ...formData.warrantyCosts, consumption3Years: Number(e.target.value) },
+                        warrantyCosts: { ...formData.warrantyCosts, consumption3Years: val },
                       })}
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                     />

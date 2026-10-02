@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
 import { exportVehiclesToExcel, downloadExcelTemplate, parseVehiclesFromExcel } from '@/lib/excel';
+import { formatMoney } from '@/lib/calculations';
 import {
   FileSpreadsheet,
   Download,
@@ -345,7 +346,7 @@ export function ExcelManagerModal({
                           {v.brand} {v.model} {v.version} ({v.powertrain})
                         </span>
                         <span className="text-[11px] text-slate-500 font-mono">
-                          R$ {v.financial.storePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          R$ {formatMoney(v.financial.storePrice)}
                         </span>
                       </div>
                     ))}

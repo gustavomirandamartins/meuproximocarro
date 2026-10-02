@@ -293,7 +293,6 @@ export function DealershipQuickTestView({
               };
               triggerAutoSave(updated);
             }}
-            placeholder="Anotações sobre a proposta comercial, brindes ofertados, avaliação do gerente para o usado..."
             className="w-full p-3 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-white/10 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
           />
         </div>

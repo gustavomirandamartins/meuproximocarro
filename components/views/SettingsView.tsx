@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { UserPreferences, ScenarioPreset } from '@/types/vehicle';
 import { SCENARIO_PRESETS } from '@/lib/seed-data';
+import { formatMoney } from '@/lib/calculations';
+import { PtBrNumberInput } from '@/components/ui/PtBrNumberInput';
 import {
   Sliders,
   RotateCcw,
@@ -156,8 +158,8 @@ export function SettingsView({
                 </p>
                 <div className="mt-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                   {scenario.annualKm.toLocaleString('pt-BR')} km/ano · Gas: R${' '}
-                  {scenario.gasolinePrice.toFixed(2)} · Luz: R${' '}
-                  {scenario.electricityPrice.toFixed(2)}
+                  {formatMoney(scenario.gasolinePrice)} · Luz: R${' '}
+                  {formatMoney(scenario.electricityPrice)}
                 </div>
               </button>
             );
@@ -547,13 +549,12 @@ export function SettingsView({
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-1">
           <div>
             <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Tabela FIPE (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={prefs.usedCar?.fipeValue || ''}
-              onChange={(e) => setPrefs({
+            <PtBrNumberInput
+              isCurrency
+              value={prefs.usedCar?.fipeValue}
+              onChange={(val) => setPrefs({
                 ...prefs,
-                usedCar: { ...prefs.usedCar, fipeValue: Number(e.target.value) },
+                usedCar: { ...prefs.usedCar, fipeValue: val },
               })}
               className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-emerald-400"
             />
@@ -561,12 +562,11 @@ export function SettingsView({
 
           <div>
             <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Comprimento (mm)</label>
-            <input
-              type="number"
-              value={prefs.usedCar?.lengthMm || ''}
-              onChange={(e) => setPrefs({
+            <PtBrNumberInput
+              value={prefs.usedCar?.lengthMm}
+              onChange={(val) => setPrefs({
                 ...prefs,
-                usedCar: { ...prefs.usedCar, lengthMm: Number(e.target.value) },
+                usedCar: { ...prefs.usedCar, lengthMm: val },
               })}
               className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
             />
@@ -574,12 +574,11 @@ export function SettingsView({
 
           <div>
             <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Largura (mm)</label>
-            <input
-              type="number"
-              value={prefs.usedCar?.widthMm || ''}
-              onChange={(e) => setPrefs({
+            <PtBrNumberInput
+              value={prefs.usedCar?.widthMm}
+              onChange={(val) => setPrefs({
                 ...prefs,
-                usedCar: { ...prefs.usedCar, widthMm: Number(e.target.value) },
+                usedCar: { ...prefs.usedCar, widthMm: val },
               })}
               className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
             />
@@ -587,12 +586,11 @@ export function SettingsView({
 
           <div>
             <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Entre-eixos (mm)</label>
-            <input
-              type="number"
-              value={prefs.usedCar?.wheelbaseMm || ''}
-              onChange={(e) => setPrefs({
+            <PtBrNumberInput
+              value={prefs.usedCar?.wheelbaseMm}
+              onChange={(val) => setPrefs({
                 ...prefs,
-                usedCar: { ...prefs.usedCar, wheelbaseMm: Number(e.target.value) },
+                usedCar: { ...prefs.usedCar, wheelbaseMm: val },
               })}
               className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
             />
@@ -600,14 +598,95 @@ export function SettingsView({
 
           <div>
             <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Peso (kg)</label>
-            <input
-              type="number"
-              value={prefs.usedCar?.weightKg || ''}
-              onChange={(e) => setPrefs({
+            <PtBrNumberInput
+              value={prefs.usedCar?.weightKg}
+              onChange={(val) => setPrefs({
                 ...prefs,
-                usedCar: { ...prefs.usedCar, weightKg: Number(e.target.value) },
+                usedCar: { ...prefs.usedCar, weightKg: val },
               })}
               className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+        </div>
+
+        {/* Informações Complementares de Desempenho, Consumo & Custos */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Porta-Malas (L)</label>
+            <PtBrNumberInput
+              value={prefs.usedCar?.trunkVolumeLiters}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, trunkVolumeLiters: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">0-100 km/h (s)</label>
+            <PtBrNumberInput
+              allowDecimals
+              decimalPlaces={1}
+              value={prefs.usedCar?.zeroToHundredSeconds}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, zeroToHundredSeconds: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Potência (cv)</label>
+            <PtBrNumberInput
+              value={prefs.usedCar?.powerHp}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, powerHp: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Consumo (Gasolina) Urbano</label>
+            <PtBrNumberInput
+              allowDecimals
+              decimalPlaces={1}
+              value={prefs.usedCar?.urbanGasolineKmL}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, urbanGasolineKmL: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">Consumo (Gasolina) Estrada</label>
+            <PtBrNumberInput
+              allowDecimals
+              decimalPlaces={1}
+              value={prefs.usedCar?.highwayGasolineKmL}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, highwayGasolineKmL: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">TCO 3 Anos (R$)</label>
+            <PtBrNumberInput
+              isCurrency
+              value={prefs.usedCar?.tco3Years}
+              onChange={(val) => setPrefs({
+                ...prefs,
+                usedCar: { ...prefs.usedCar, tco3Years: val },
+              })}
+              className="w-full px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-xs font-bold text-amber-600 dark:text-amber-400"
             />
           </div>
         </div>

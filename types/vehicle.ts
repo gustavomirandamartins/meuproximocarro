@@ -33,6 +33,12 @@ export interface RegisteredUsedCar {
   widthMm: number; // Largura (mm)
   wheelbaseMm: number; // Entre-eixos (mm)
   weightKg: number; // Peso (kg)
+  trunkVolumeLiters?: number; // Volume Porta-Malas (L)
+  zeroToHundredSeconds?: number; // 0-100 km/h (s)
+  powerHp?: number; // Potência (cv)
+  urbanGasolineKmL?: number; // Consumo (Gasolina) Urbano / Cidade (km/l)
+  highwayGasolineKmL?: number; // Consumo (Gasolina) Estrada / Rodovia (km/l)
+  tco3Years?: number; // TCO 3 anos (R$)
   fipeLastUpdated?: string;
 }
 

@@ -14,7 +14,6 @@ import {
   savePreferencesToFirestore,
   subscribeToVehicles,
   subscribeToPreferences,
-  syncLocalVehiclesToCloudIfEmpty,
   DEFAULT_WORKSPACE_ID,
 } from './firestore-sync';
 
@@ -109,8 +108,8 @@ export function useCarMatchStore() {
     () => false
   );
 
-  // State starts with seed data; Firestore real-time listener replaces it once connected
-  const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL_VEHICLES);
+  // State starts empty and is strictly driven by Firestore real-time listener
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [preferences, setPreferences] = useState<UserPreferences>(INITIAL_PREFERENCES);
   const [activeScenarioId, setActiveScenarioId] = useState<string>('padrao_familiar');
   const [firestoreReady, setFirestoreReady] = useState(false);
@@ -119,10 +118,23 @@ export function useCarMatchStore() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let isSubscribed = true;
+    // Purge any legacy localStorage keys to ensure browser cache never interferes
+    try {
+      const legacyKeys = [
+        'carmatch_vehicles',
+        'carmatch_vehicles_v2',
+        'carmatch_vehicles_v3',
+        'carmatch_vehicles_v4',
+        'carmatch_preferences',
+        'carmatch_workspace_empty',
+        'meu_proximo_carro_user_initialized',
+      ];
+      legacyKeys.forEach((k) => localStorage.removeItem(k));
+    } catch (e) {
+      // Ignore
+    }
 
-    // Push seed data to Firestore if cloud is empty (first-time setup)
-    syncLocalVehiclesToCloudIfEmpty(INITIAL_VEHICLES, INITIAL_PREFERENCES, 'padrao_familiar').catch(console.error);
+    let isSubscribed = true;
 
     // Real-time subscription to cloud vehicles — Firestore drives the UI
     const unsubVehicles = subscribeToVehicles(
@@ -144,13 +156,24 @@ export function useCarMatchStore() {
       (cloudPrefs, cloudScenarioId) => {
         if (!isSubscribed) return;
         if (cloudPrefs) {
+          const mergedUsedCar: RegisteredUsedCar = {
+            ...DEFAULT_USED_CAR,
+            ...(cloudPrefs.usedCar || {}),
+            trunkVolumeLiters: cloudPrefs.usedCar?.trunkVolumeLiters ?? DEFAULT_USED_CAR.trunkVolumeLiters,
+            zeroToHundredSeconds: cloudPrefs.usedCar?.zeroToHundredSeconds ?? DEFAULT_USED_CAR.zeroToHundredSeconds,
+            powerHp: cloudPrefs.usedCar?.powerHp ?? DEFAULT_USED_CAR.powerHp,
+            urbanGasolineKmL: cloudPrefs.usedCar?.urbanGasolineKmL ?? DEFAULT_USED_CAR.urbanGasolineKmL,
+            highwayGasolineKmL: cloudPrefs.usedCar?.highwayGasolineKmL ?? DEFAULT_USED_CAR.highwayGasolineKmL,
+            tco3Years: cloudPrefs.usedCar?.tco3Years ?? DEFAULT_USED_CAR.tco3Years,
+          };
+
           setPreferences({
             ...INITIAL_PREFERENCES,
             ...cloudPrefs,
             selectedState: 'BA',
             ipvaRatePercent: 2.5,
             tcoYearsPeriod: 3,
-            usedCar: cloudPrefs.usedCar || INITIAL_PREFERENCES.usedCar || DEFAULT_USED_CAR,
+            usedCar: mergedUsedCar,
           });
         }
         if (cloudScenarioId) {
@@ -240,18 +263,12 @@ export function useCarMatchStore() {
     []
   );
 
-  // Reset to initial seed data
+  // Reset preferences to factory defaults without modifying candidate vehicles
   const resetToSeedData = useCallback(() => {
-    // Clear existing vehicles from Firestore
-    vehicles.forEach((v) => deleteVehicleFromFirestore(v.id).catch(console.error));
-
-    // Save seed data to Firestore
-    setVehicles(INITIAL_VEHICLES);
     setPreferences(INITIAL_PREFERENCES);
     setActiveScenarioId('padrao_familiar');
-    INITIAL_VEHICLES.forEach((v) => saveVehicleToFirestore(v).catch(console.error));
     savePreferencesToFirestore(INITIAL_PREFERENCES, 'padrao_familiar').catch(console.error);
-  }, [vehicles]);
+  }, []);
 
   // Export full snapshot
   const exportData = useCallback(() => {
@@ -333,6 +350,7 @@ export function useCarMatchStore() {
 
   return {
     isHydrated,
+    firestoreReady,
     vehicles,
     preferences,
     activeScenarioId,

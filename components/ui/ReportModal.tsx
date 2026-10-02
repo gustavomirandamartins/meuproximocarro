@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
-import { calculateTCO, calculateCategoryScores, checkElimination, generatePositionExplanation } from '@/lib/calculations';
+import { calculateTCO, calculateCategoryScores, checkElimination, generatePositionExplanation, formatMoney } from '@/lib/calculations';
 import { X, Printer, Copy, Check, FileCheck, Share2 } from 'lucide-react';
 
 interface ReportModalProps {
@@ -57,8 +57,8 @@ export function ReportModal({
       lines.push(`${idx + 1}. ${f.vehicle.brand} ${f.vehicle.model} ${f.vehicle.version}`);
       lines.push(`   • Nota Ponderada: ${f.scores.finalWeightedScore.toFixed(1)}/100`);
       lines.push(`   • Distância ISOFIX: ${f.vehicle.familySpace.isofixDistanceCm} cm (Medido)`);
-      lines.push(`   • Preço da Loja: R$ ${f.vehicle.financial.storePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-      lines.push(`   • TCO 3 Anos Estimado: R$ ${f.tco.totalTCO.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (R$ ${f.tco.monthlyTCO.toFixed(2)}/mês)`);
+      lines.push(`   • Preço da Loja: R$ ${formatMoney(f.vehicle.financial.storePrice)}`);
+      lines.push(`   • TCO 3 Anos Estimado: R$ ${formatMoney(f.tco.totalTCO)} (R$ ${formatMoney(f.tco.monthlyTCO)}/mês)`);
       lines.push(`   • Justificativa: ${f.explanation.headline}`);
       lines.push(`   • Pontos Fortes: ${f.explanation.strengths.join('; ')}`);
       lines.push(`   • Pontos Fracos: ${f.explanation.weaknesses.join('; ')}\n`);

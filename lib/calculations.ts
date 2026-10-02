@@ -15,6 +15,38 @@ export function formatNumber(val: number, decimals: number = 2): string {
   return rounded.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+/**
+ * Converte entradas numéricas ou strings no padrão brasileiro para número JavaScript.
+ * O '.' é sempre lido como formato de numeração / separador de milhar, NUNCA como separador decimal.
+ * A ',' é o separador decimal.
+ * Exemplos:
+ *  - '1.789' => 1789
+ *  - '1.789,50' => 1789.5
+ *  - '239.990' => 239990
+ *  - '11,2' => 11.2
+ */
+export function parsePtBrNumber(val: any, fallback: number = 0): number {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  const str = String(val).trim();
+  if (str === '') return fallback;
+
+  // Remove símbolos monetários (R$), espaços e pontos de milhar
+  const cleaned = str.replace(/[R$\s]/gi, '').replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? fallback : num;
+}
+
+export function parsePtBrNullableNumber(val: any): number | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return isNaN(val) ? null : val;
+  const str = String(val).trim();
+  if (str === '') return null;
+  const cleaned = str.replace(/[R$\s]/gi, '').replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
 export function getIsofixRating(distanceCm: number | null | undefined): {
   rating: IsofixRating;
   colorClass: string;

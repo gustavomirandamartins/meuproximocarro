@@ -346,7 +346,12 @@ export function ComparisonView({
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Volume Porta-malas</td>
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      {vehicle.trunk.volumeLiters} Litros
+                      <strong>{vehicle.trunk.volumeLiters} Litros</strong>
+                      {usedCar?.trunkVolumeLiters && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400">
+                          {compareDimensions(vehicle.trunk.volumeLiters, usedCar.trunkVolumeLiters, 'L').text}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -386,7 +391,12 @@ export function ComparisonView({
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Potência Total</td>
                   {calculatedMap.map(({ vehicle }, idx) => (
                     <td key={vehicle.id} className={`p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums ${idx === bestPowerIdx ? 'font-bold text-blue-600 dark:text-cyan-400' : ''}`}>
-                      {vehicle.powertrainSpec.totalPowerHp} cv
+                      <strong>{vehicle.powertrainSpec.totalPowerHp} cv</strong>
+                      {usedCar?.powerHp && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
+                          {compareDimensions(vehicle.powertrainSpec.totalPowerHp, usedCar.powerHp, 'cv').text}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -408,7 +418,12 @@ export function ComparisonView({
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">0 a 100 km/h</td>
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      {formatNumber(vehicle.powertrainSpec.zeroToHundredSeconds, 1)} s
+                      <strong>{formatNumber(vehicle.powertrainSpec.zeroToHundredSeconds, 1)} s</strong>
+                      {usedCar?.zeroToHundredSeconds && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
+                          {compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's').text}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -437,7 +452,28 @@ export function ComparisonView({
                   <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Consumo Cidade</td>
                   {calculatedMap.map(({ vehicle }) => (
                     <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
-                      {formatNumber(vehicle.consumption.urbanKmL, 1)} km/l
+                      <strong>{formatNumber(vehicle.consumption.urbanKmL, 1)} km/l</strong>
+                      {usedCar?.urbanGasolineKmL && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
+                          {compareDimensions(vehicle.consumption.urbanKmL, usedCar.urbanGasolineKmL, 'km/l').text}
+                        </span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              )}
+
+              {(!onlyDifferences || hasDiff((i) => i.vehicle.consumption.highwayKmL)) && (
+                <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
+                  <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">Consumo Estrada</td>
+                  {calculatedMap.map(({ vehicle }) => (
+                    <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                      <strong>{formatNumber(vehicle.consumption.highwayKmL, 1)} km/l</strong>
+                      {usedCar?.highwayGasolineKmL && (
+                        <span className="block text-[10px] text-blue-600 dark:text-cyan-400 font-normal">
+                          {compareDimensions(vehicle.consumption.highwayKmL, usedCar.highwayGasolineKmL, 'km/l').text}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -476,7 +512,14 @@ export function ComparisonView({
                 <td className="p-3.5 text-slate-900 dark:text-white">TCO Total (3 Anos)</td>
                 {calculatedMap.map(({ vehicle, tco }, idx) => (
                   <td key={vehicle.id} className={`p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums ${idx === bestTcoIdx ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : ''}`}>
-                    R$ {formatMoney(tco.totalTCO)}
+                    <strong>R$ {formatMoney(tco.totalTCO)}</strong>
+                    {usedCar?.tco3Years && (
+                      <span className={`block text-[10px] font-normal ${tco.totalTCO <= usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                        {tco.totalTCO <= usedCar.tco3Years
+                          ? `- R$ ${formatMoney(usedCar.tco3Years - tco.totalTCO)} vs usado`
+                          : `+ R$ ${formatMoney(tco.totalTCO - usedCar.tco3Years)} vs usado`}
+                      </span>
+                    )}
                   </td>
                 ))}
               </tr>

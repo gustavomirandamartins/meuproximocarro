@@ -1,15 +1,21 @@
 import { Vehicle, UserPreferences, ScenarioPreset, RegisteredUsedCar } from '@/types/vehicle';
 
 export const DEFAULT_USED_CAR: RegisteredUsedCar = {
-  brand: 'Jeep',
-  model: 'Renegade',
-  version: 'Longitude 1.8 Flex Aut.',
-  yearModel: 2021,
-  fipeValue: 88500.00,
-  lengthMm: 4268,
-  widthMm: 1805,
-  wheelbaseMm: 2570,
-  weightKg: 1448,
+  brand: 'Honda',
+  model: 'HR-V',
+  version: 'EX 1.8 Automático',
+  yearModel: 2019,
+  fipeValue: 98707.00,
+  lengthMm: 4294,
+  widthMm: 1772,
+  wheelbaseMm: 2610,
+  weightKg: 1270,
+  trunkVolumeLiters: 437,
+  zeroToHundredSeconds: 11.2,
+  powerHp: 140,
+  urbanGasolineKmL: 11.0,
+  highwayGasolineKmL: 12.3,
+  tco3Years: 38500.00,
   fipeLastUpdated: 'Outubro/2026 (Atualizada)',
 };
 
