@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
-import { calculateTCO, calculateCategoryScores, checkElimination, generatePositionExplanation, formatMoney } from '@/lib/calculations';
+import { formatMoney, computeUnifiedRanking } from '@/lib/calculations';
 import { X, Printer, Copy, Check, FileCheck, Share2 } from 'lucide-react';
 
 interface ReportModalProps {
@@ -22,22 +22,9 @@ export function ReportModal({
 
   if (!isOpen) return null;
 
-  // Filter viable vehicles and sort by final weighted score descending
-  const scoredVehicles = vehicles
-    .map((v) => {
-      const elim = checkElimination(v, preferences);
-      const scores = calculateCategoryScores(v, preferences);
-      const tco = calculateTCO(v, preferences);
-      const explanation = generatePositionExplanation(v, scores, vehicles, preferences);
-      return { vehicle: v, elimination: elim, scores, tco, explanation };
-    })
-    .sort((a, b) => {
-      if (a.elimination.isEliminated && !b.elimination.isEliminated) return 1;
-      if (!a.elimination.isEliminated && b.elimination.isEliminated) return -1;
-      return b.scores.finalWeightedScore - a.scores.finalWeightedScore;
-    });
-
-  const finalists = scoredVehicles.filter((s) => !s.elimination.isEliminated).slice(0, 3);
+  // Use unified official ranking
+  const { viableRanked, fullRanking } = computeUnifiedRanking(vehicles, preferences);
+  const finalists = viableRanked.length > 0 ? viableRanked.slice(0, 3) : fullRanking.slice(0, 3);
 
   const handlePrint = () => {
     window.print();

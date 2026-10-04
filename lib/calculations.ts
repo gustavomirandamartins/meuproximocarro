@@ -152,22 +152,11 @@ export function checkElimination(
     passedRequirements.push(`Preço da loja (R$ ${formatMoney(storePrice)}) dentro do limite de R$ ${formatMoney(maxPrice)}`);
   }
 
-  // 2. Desclassificação por Comprimento muito acima de 4500mm
-  const maxLength = settings.maxLengthMm ?? 4500;
+  // 2. Comprimento (informativo, não desclassifica)
   const lengthMm = vehicle.familySpace?.lengthMm || 0;
-  let isLengthDisqualified = false;
-  if (lengthMm > maxLength) {
-    isLengthDisqualified = true;
-    const diffMm = lengthMm - maxLength;
-    const msg = `Comprimento muito acima de ${formatNumber(maxLength, 0)} mm (${formatNumber(lengthMm, 0)} mm, +${formatNumber(diffMm, 0)} mm)`;
-    failedRequirements.push(msg);
-    disqualifications.push({
-      type: 'LENGTH',
-      title: `Comprimento muito acima de ${formatNumber(maxLength, 0)} mm`,
-      description: `Comprimento total de ${formatNumber(lengthMm, 0)} mm excede a vaga/garagem familiar (limite ${formatNumber(maxLength, 0)} mm)`,
-    });
-  } else if (lengthMm > 0) {
-    passedRequirements.push(`Comprimento de ${formatNumber(lengthMm, 0)} mm adequado ao padrão familiar (≤ ${formatNumber(maxLength, 0)} mm)`);
+  const isLengthDisqualified = false;
+  if (lengthMm > 0) {
+    passedRequirements.push(`Comprimento de ${formatNumber(lengthMm, 0)} mm`);
   }
 
   // 3. Desclassificação por Distância do ISOFIX abaixo de 45cm
@@ -614,10 +603,6 @@ export function generatePositionExplanation(
     weaknesses.push(`Preço de R$ ${formatMoney(vehicle.financial.storePrice)} acima do teto estipulado de R$ ${formatMoney(settings.maxStorePrice ?? 200000)} (desclassificatório)`);
   }
 
-  if (elim.isLengthDisqualified) {
-    weaknesses.push(`Comprimento de ${formatNumber(vehicle.familySpace.lengthMm, 0)} mm muito acima de ${formatNumber(settings.maxLengthMm ?? 4500, 0)} mm (desclassificatório)`);
-  }
-
   if (elim.isIsofixDisqualified) {
     weaknesses.push(`Distância ISOFIX de ${formatNumber(vehicle.familySpace.isofixDistanceCm || 0, 2)} cm abaixo de ${formatNumber(settings.isofixMinDistanceCm ?? 45, 2)} cm (desclassificatório)`);
   }
@@ -631,15 +616,107 @@ export function generatePositionExplanation(
   }
 
   const headline = elim.isEliminated
-    ? `Desclassificado para as últimas posições por critérios eliminatórios (${elim.reason})`
+    ? `Desclassificado (${elim.reason})`
     : `Pontuação ponderada de ${formatNumber(scores.finalWeightedScore, 1)} / 100`;
 
   return {
     headline,
     comparativeNote: elim.isEliminated
-      ? `Rebaixado para o final da classificação por violar requisitos mínimos obrigatórios.`
+      ? `Desclassificado por violar requisitos obrigatórios.`
       : `Avaliado considerando TCO de 3 anos (IPVA BA 2,5%), dimensões vs usado e espaço familiar.`,
     strengths: strengths.length > 0 ? strengths : ['Veículo em avaliação'],
     weaknesses: weaknesses.length > 0 ? weaknesses : ['Nenhum ponto impeditivo detectado'],
+  };
+}
+
+export interface EvaluatedRankingItem {
+  vehicle: Vehicle;
+  elim: EliminationCheckResult;
+  scores: ReturnType<typeof calculateCategoryScores>;
+  tco: ReturnType<typeof calculateTCO>;
+  storePrice: number;
+  explanation: ReturnType<typeof generatePositionExplanation>;
+  costBenefitPrice: number;
+  costBenefitTco: number;
+  isEligibleForRanking: boolean;
+}
+
+export function isVehicleRankingEligible(
+  v: Vehicle,
+  preferences?: UserPreferences
+): boolean {
+  const passengers = v.familySpace?.passengerCapacity ?? 5;
+  const isofix = v.familySpace?.isofixDistanceCm;
+
+  // 1. Veículo com capacidade superior a 5 passageiros (ex: 6 ou 7 lugares)
+  const seatsMoreThan5 = passengers > 5;
+
+  // 2. Veículo que já teve o ISOFIX medido (valor numérico válido preenchido)
+  const hasMeasuredIsofix =
+    isofix !== null &&
+    isofix !== undefined &&
+    !isNaN(isofix) &&
+    isofix > 0;
+
+  return Boolean(hasMeasuredIsofix || seatsMoreThan5);
+}
+
+export function computeUnifiedRanking(
+  vehicles: Vehicle[],
+  preferences: UserPreferences
+): {
+  eligibleVehicles: Vehicle[];
+  unmeasuredVehicles: Vehicle[];
+  evaluatedEligible: EvaluatedRankingItem[];
+  viableRanked: EvaluatedRankingItem[];
+  disqualifiedRanked: EvaluatedRankingItem[];
+  fullRanking: EvaluatedRankingItem[];
+} {
+  const eligibleVehicles = vehicles.filter((v) => isVehicleRankingEligible(v, preferences));
+  const unmeasuredVehicles = vehicles.filter((v) => !isVehicleRankingEligible(v, preferences));
+
+  const evaluatedEligible: EvaluatedRankingItem[] = eligibleVehicles.map((v) => {
+    const elim = checkElimination(v, preferences);
+    const scores = calculateCategoryScores(v, preferences);
+    const tco = calculateTCO(v, preferences);
+    const storePrice = v.financial?.storePrice || v.financial?.tablePrice || 0;
+    const explanation = generatePositionExplanation(v, scores, eligibleVehicles, preferences);
+    const costBenefitPrice = scores.finalWeightedScore > 0 ? storePrice / scores.finalWeightedScore : 0;
+    const costBenefitTco = scores.finalWeightedScore > 0 ? tco.totalTCO / scores.finalWeightedScore : 0;
+
+    return {
+      vehicle: v,
+      elim,
+      scores,
+      tco,
+      storePrice,
+      explanation,
+      costBenefitPrice,
+      costBenefitTco,
+      isEligibleForRanking: true,
+    };
+  });
+
+  // 1. Viáveis (atendem aos requisitos mínimos e não foram desclassificados)
+  const viableRanked = evaluatedEligible
+    .filter((item) => !item.elim.isEliminated)
+    .sort((a, b) => b.scores.finalWeightedScore - a.scores.finalWeightedScore);
+
+  // 2. Desclassificados (eliminados por preço, ISOFIX insuficiente, etc. - FORA do ranking)
+  const disqualifiedRanked = evaluatedEligible
+    .filter((item) => item.elim.isEliminated)
+    .sort((a, b) => b.scores.finalWeightedScore - a.scores.finalWeightedScore);
+
+  // Ranking oficial unificado: APENAS veículos classificados/viáveis!
+  // Se está desclassificado, NÃO entra no ranking.
+  const fullRanking = viableRanked;
+
+  return {
+    eligibleVehicles,
+    unmeasuredVehicles,
+    evaluatedEligible,
+    viableRanked,
+    disqualifiedRanked,
+    fullRanking,
   };
 }

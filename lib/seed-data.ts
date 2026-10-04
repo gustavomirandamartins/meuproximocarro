@@ -25,7 +25,7 @@ export const DEFAULT_USED_CAR: RegisteredUsedCar = {
 export const INITIAL_PREFERENCES: UserPreferences = {
   isofixMinDistanceCm: 45,
   maxStorePrice: 200000, // Desclassifica acima de R$ 200.000,00
-  maxLengthMm: 4500, // Desclassifica muito acima de 4500 mm
+  maxLengthMm: 4500, // Padrão de referência para garagem
   autoEliminateIncompatible: true,
   excludeBEV: false,
   

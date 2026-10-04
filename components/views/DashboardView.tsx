@@ -1,8 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
-import { calculateTCO, calculateCategoryScores, checkElimination, getIsofixRating, formatMoney, formatNumber, compareDimensions } from '@/lib/calculations';
+import {
+  calculateTCO,
+  calculateCategoryScores,
+  checkElimination,
+  getIsofixRating,
+  formatMoney,
+  formatNumber,
+  compareDimensions,
+  computeUnifiedRanking,
+} from '@/lib/calculations';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { CalculationModal } from '@/components/ui/CalculationModal';
 import { ReportModal } from '@/components/ui/ReportModal';
@@ -38,47 +47,56 @@ export function DashboardView({
 
   const usedCar = preferences.usedCar;
 
-  // Analyze vehicles
-  const evaluated = vehicles.map((v) => {
-    const elim = checkElimination(v, preferences);
-    const scores = calculateCategoryScores(v, preferences);
-    const tco = calculateTCO(v, preferences);
-    return { vehicle: v, elim, scores, tco };
-  });
+  // Unified official ranking matching RankingView exactly
+  const {
+    eligibleVehicles,
+    unmeasuredVehicles,
+    viableRanked,
+    disqualifiedRanked,
+    fullRanking,
+  } = useMemo(() => computeUnifiedRanking(vehicles, preferences), [vehicles, preferences]);
 
-  const viableVehicles = evaluated.filter((e) => !e.elim.isEliminated);
-  const eliminatedVehicles = evaluated.filter((e) => e.elim.isEliminated);
+  // Principais candidatos finalistas: exatamente os primeiros colocados do ranking oficial unificado
+  const topFinalists = fullRanking.slice(0, 3);
 
-  // Sort viable by score descending
-  const sortedViable = [...viableVehicles].sort(
-    (a, b) => b.scores.finalWeightedScore - a.scores.finalWeightedScore
-  );
-  const topFinalists = viableVehicles.length > 0
-    ? sortedViable.slice(0, 3)
-    : [...evaluated].sort((a, b) => b.scores.finalWeightedScore - a.scores.finalWeightedScore).slice(0, 3);
+  // Key summary values (baseados no ranking oficial unificado)
+  const lowestTcoVehicle = viableRanked.length > 0
+    ? [...viableRanked].sort((a, b) => a.tco.totalTCO - b.tco.totalTCO)[0]
+    : (fullRanking.length > 0 ? [...fullRanking].sort((a, b) => a.tco.totalTCO - b.tco.totalTCO)[0] : null);
 
-  // Key summary values
-  const lowestTcoVehicle = viableVehicles.length > 0
-    ? [...viableVehicles].sort((a, b) => a.tco.totalTCO - b.tco.totalTCO)[0]
-    : null;
-
-  const widestIsofixVehicle = viableVehicles.length > 0
-    ? [...viableVehicles].sort(
+  const widestIsofixVehicle = viableRanked.length > 0
+    ? [...viableRanked].sort(
         (a, b) => (b.vehicle.familySpace.isofixDistanceCm || 0) - (a.vehicle.familySpace.isofixDistanceCm || 0)
       )[0]
-    : null;
+    : (fullRanking.length > 0
+        ? [...fullRanking].sort(
+            (a, b) => (b.vehicle.familySpace.isofixDistanceCm || 0) - (a.vehicle.familySpace.isofixDistanceCm || 0)
+          )[0]
+        : null);
 
   // Decision Pending Items
   const pendingItems: { vehicle: Vehicle; issue: string; impact: string }[] = [];
-  viableVehicles.forEach(({ vehicle }) => {
-    if (vehicle.familySpace.isofixDistanceCm === null || vehicle.familySpace.isofixDistanceCm === undefined) {
-      pendingItems.push({
-        vehicle,
-        issue: 'Medição presencial da fita métrica entre pontos ISOFIX pendente',
-        impact: 'Necessário para comprovar espaço ≥ 45,00 cm para 5 passageiros.',
-      });
+  const minIsofix = preferences?.isofixMinDistanceCm ?? 45;
+  vehicles.forEach((vehicle) => {
+    const isofix = vehicle.familySpace?.isofixDistanceCm;
+    const isUnmeasured = isofix === null || isofix === undefined || isNaN(isofix) || isofix === 0;
+    const is5SeatsOrLess = (vehicle.familySpace?.passengerCapacity ?? 5) <= 5;
+    if (is5SeatsOrLess) {
+      if (isUnmeasured) {
+        pendingItems.push({
+          vehicle,
+          issue: 'Medição presencial da fita métrica do ISOFIX pendente',
+          impact: `Exigido para entrar no ranking (espaço ≥ ${minIsofix} cm para 5 passageiros).`,
+        });
+      } else if (isofix < minIsofix) {
+        pendingItems.push({
+          vehicle,
+          issue: `ISOFIX de ${formatNumber(isofix, 2)} cm abaixo do mínimo exigido (${minIsofix} cm)`,
+          impact: 'Fora do ranking por não acomodar cadeirinhas familiares.',
+        });
+      }
     }
-    if (!vehicle.financial.storePrice) {
+    if (!vehicle.financial?.storePrice) {
       pendingItems.push({
         vehicle,
         issue: 'Preço final da loja não informado',
@@ -92,15 +110,9 @@ export function DashboardView({
       {/* 1. Header Overview */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-            Visão Geral Estratégica · Bahia (BA)
-          </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
             Como está minha decisão?
           </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
-            Comparativo com foco em espaço ISOFIX, dimensões comparadas ao usado e TCO simplificado de 3 anos (IPVA BA 2,5%).
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -117,7 +129,7 @@ export function DashboardView({
             className="px-3.5 py-2 text-xs font-medium rounded-xl bg-white/60 dark:bg-slate-850/60 text-slate-800 dark:text-slate-200 border border-white/50 dark:border-white/10 hover:bg-white/90 dark:hover:bg-slate-800 backdrop-blur-xl transition-all flex items-center gap-1.5 min-h-[40px] cursor-pointer"
           >
             <Scale className="w-4 h-4 text-slate-500" />
-            <span>Comparar ({viableVehicles.length})</span>
+            <span>Comparar ({viableRanked.length})</span>
           </button>
         </div>
       </div>
@@ -154,16 +166,18 @@ export function DashboardView({
           {/* Total Viáveis */}
           <div className="p-4 sm:p-5 rounded-3xl border border-white/60 dark:border-white/10 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl shadow-sm">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase">
-              Veículos Viáveis
+              Veículos no Ranking
             </span>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tabular-nums">
-                {viableVehicles.length}
+                {fullRanking.length}
               </span>
-              <span className="text-xs text-slate-500">de {vehicles.length} total</span>
+              <span className="text-xs text-slate-500">classificados</span>
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              {eliminatedVehicles.length} descartados pelo critério de passageiros/ISOFIX.
+              {disqualifiedRanked.length > 0
+                ? `${disqualifiedRanked.length} ${disqualifiedRanked.length === 1 ? 'desclassificado' : 'desclassificados'} (fora do ranking).`
+                : `${unmeasuredVehicles.length} pendentes de medição ISOFIX.`}
             </p>
           </div>
 
@@ -173,17 +187,17 @@ export function DashboardView({
               Líder do Ranking
             </span>
             <div className="mt-1">
-              {sortedViable.length > 0 ? (
+              {fullRanking.length > 0 ? (
                 <>
                   <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white block truncate">
-                    {sortedViable[0].vehicle.brand} {sortedViable[0].vehicle.model}
+                    {fullRanking[0].vehicle.brand} {fullRanking[0].vehicle.model}
                   </span>
                   <span className="text-xs font-semibold text-blue-600 dark:text-cyan-400">
-                    Nota: {formatNumber(sortedViable[0].scores.finalWeightedScore, 1)} / 100
+                    Nota: {formatNumber(fullRanking[0].scores.finalWeightedScore, 1)} / 100
                   </span>
                 </>
               ) : (
-                <span className="text-xs text-slate-400">Nenhum viável</span>
+                <span className="text-xs text-slate-400">Nenhum veículo apto</span>
               )}
             </div>
           </div>
@@ -241,365 +255,129 @@ export function DashboardView({
                 Principais Candidatos Finalistas
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Veículos elegíveis com TCO simplificado de 3 anos e dimensões comparadas ao seu usado ({usedCar?.brand} {usedCar?.model}).
+                Top colocados no ranking oficial ponderado com TCO de 3 anos e dimensões vs seu usado ({usedCar?.brand} {usedCar?.model}).
               </p>
             </div>
             <button
-              onClick={() => onNavigate('vehicles')}
+              onClick={() => onNavigate('ranking')}
               className="text-xs font-semibold text-blue-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <span>Ver todos ({vehicles.length})</span>
+              <span>Ver ranking completo ({fullRanking.length})</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {topFinalists.map(({ vehicle, scores, tco, elim }, idx) => {
-              const isofixRating = getIsofixRating(vehicle.familySpace.isofixDistanceCm);
+          {topFinalists.length === 0 ? (
+            <div className="p-8 text-center rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50">
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                Nenhum veículo classificado no momento.
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                {unmeasuredVehicles.length > 0 && `${unmeasuredVehicles.length} aguardam medição do ISOFIX. `}
+                {disqualifiedRanked.length > 0 && `${disqualifiedRanked.length} desclassificados pelos critérios atuais.`}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {topFinalists.map((item, idx) => {
+                const { vehicle, scores, tco } = item;
+                const isofixRating = getIsofixRating(vehicle.familySpace.isofixDistanceCm);
+                const rankPosition = idx + 1;
 
-              return (
-                <div
-                  key={vehicle.id}
-                  className={`rounded-3xl border backdrop-blur-2xl p-5 shadow-sm flex flex-col justify-between transition-all ${
-                    elim.isEliminated
-                      ? 'border-rose-300/80 dark:border-rose-900/80 bg-rose-50/30 dark:bg-rose-950/20'
-                      : 'border-white/60 dark:border-white/10 bg-white/75 dark:bg-slate-900/75'
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className={`text-[11px] font-semibold ${elim.isEliminated ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-cyan-400'}`}>
-                          #{idx + 1} no Ranking {elim.isEliminated ? '(Desclassificado)' : ''}
-                        </span>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                          {vehicle.brand} {vehicle.model}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          {vehicle.version} · {vehicle.powertrain}
-                        </p>
-                      </div>
-
-                      <div className="text-right px-2 py-1 rounded-xl bg-slate-100 dark:bg-white/10 border border-white/50 dark:border-white/10">
-                        <span className={`text-base font-bold tabular-nums ${elim.isEliminated ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                          {formatNumber(scores.finalWeightedScore, 1)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 block">/ 100</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-1 border-t border-white/40 dark:border-white/5">
-                      <StatusBadge status={vehicle.status} size="sm" />
-                      <span className="text-[11px] text-slate-500">
-                        {vehicle.dealership || 'Sem concessionária'}
-                      </span>
-                    </div>
-
-                    {/* Alerta de Desclassificação se houver */}
-                    {elim.isEliminated && (
-                      <div className="p-2.5 rounded-2xl bg-rose-500/10 dark:bg-rose-950/40 border border-rose-300/40 dark:border-rose-900/60 text-[11px] text-rose-800 dark:text-rose-300 space-y-1">
-                        <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-400">
-                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                          <span>Desclassificado:</span>
+                return (
+                  <div
+                    key={vehicle.id}
+                    className="rounded-3xl border border-white/60 dark:border-white/10 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl p-5 shadow-sm flex flex-col justify-between transition-all"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[11px] font-semibold text-blue-600 dark:text-cyan-400">
+                            #{rankPosition} no Ranking
+                          </span>
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                            {vehicle.brand} {vehicle.model}
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            {vehicle.version} · {vehicle.powertrain}
+                          </p>
                         </div>
-                        <p className="text-[10px] leading-tight text-rose-700 dark:text-rose-300">
-                          {elim.reason}
-                        </p>
-                      </div>
-                    )}
 
-                    {/* Metrics grid */}
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                      <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Distância ISOFIX</span>
-                        <span className="font-bold text-slate-900 dark:text-white tabular-nums block mt-0.5">
-                          {vehicle.familySpace.isofixDistanceCm !== null && vehicle.familySpace.isofixDistanceCm !== undefined
-                            ? `${formatNumber(vehicle.familySpace.isofixDistanceCm, 2)} cm`
-                            : 'Em branco'}
+                        <div className="text-right px-2 py-1 rounded-xl bg-slate-100 dark:bg-white/10 border border-white/50 dark:border-white/10">
+                          <span className="text-base font-bold tabular-nums text-slate-900 dark:text-white">
+                            {formatNumber(scores.finalWeightedScore, 1)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">/ 100</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1 border-t border-white/40 dark:border-white/5">
+                        <StatusBadge status={vehicle.status} size="sm" />
+                        <span className="text-[11px] text-slate-500">
+                          {vehicle.dealership || 'Sem concessionária'}
                         </span>
                       </div>
 
+                    {/* Metrics grid: Dados essenciais e principais métricas */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1">
+                      {/* Preço da Loja */}
                       <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
                         <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Preço da Loja</span>
-                        <span className={`font-bold tabular-nums block mt-0.5 ${vehicle.financial.storePrice > (preferences.maxStorePrice ?? 200000) ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        <span className={`font-bold tabular-nums block mt-0.5 ${vehicle.financial.storePrice > (preferences.maxStorePrice ?? 200000) ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
                           R$ {formatMoney(vehicle.financial.storePrice || vehicle.financial.tablePrice)}
                         </span>
                       </div>
 
+                      {/* Distância ISOFIX */}
                       <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">TCO 3 Anos (BA)</span>
-                        <span className="font-bold text-slate-900 dark:text-white tabular-nums block mt-0.5">
-                          R$ {formatMoney(tco.totalTCO)}
-                        </span>
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Distância ISOFIX</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`font-bold tabular-nums ${vehicle.familySpace.isofixDistanceCm !== null && vehicle.familySpace.isofixDistanceCm < (preferences.isofixMinDistanceCm ?? 45) ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                            {vehicle.familySpace.isofixDistanceCm !== null && vehicle.familySpace.isofixDistanceCm !== undefined
+                              ? `${formatNumber(vehicle.familySpace.isofixDistanceCm, 2)} cm`
+                              : 'Em branco'}
+                          </span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${isofixRating.badgeBg} ${isofixRating.badgeText}`}>
+                            {isofixRating.rating}
+                          </span>
+                        </div>
                       </div>
 
+                      {/* TCO 3 Anos (BA) */}
                       <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Custo Mensal (3a)</span>
-                        <span className="font-bold text-slate-900 dark:text-white tabular-nums block mt-0.5">
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">TCO 3 Anos (BA)</span>
+                        <span className={`font-bold tabular-nums block mt-0.5 ${usedCar?.tco3Years && tco.totalTCO > usedCar.tco3Years ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                          R$ {formatMoney(tco.totalTCO)}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block">
                           R$ {formatMoney(tco.monthlyTCO)}/mês
                         </span>
                       </div>
-                    </div>
 
-                    {/* Dimensões & Peso nos Cards */}
-                    <div className="p-3 rounded-2xl bg-slate-50/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 space-y-1 text-[11px]">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                        Dimensões & Peso
-                      </span>
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                        <div>
-                          <span className="text-slate-500">Comp: </span>
-                          {usedCar ? (() => {
-                            const comp = compareDimensions(vehicle.familySpace.lengthMm, usedCar.lengthMm, 'mm', 'lower');
-                            const isDisqualifiedLength = vehicle.familySpace.lengthMm > (preferences.maxLengthMm ?? 4500);
-                            return (
-                              <>
-                                <strong className={`tabular-nums ${comp.isWorse || isDisqualifiedLength ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                  {formatNumber(vehicle.familySpace.lengthMm, 0)} mm
-                                </strong>
-                                <span className={`block text-[9px] ${comp.colorClass}`}>
-                                  {comp.text}
-                                </span>
-                              </>
-                            );
-                          })() : (
-                            <strong className="text-slate-900 dark:text-white">{formatNumber(vehicle.familySpace.lengthMm, 0)} mm</strong>
-                          )}
-                        </div>
-
-                        <div>
-                          <span className="text-slate-500">Larg: </span>
-                          {usedCar ? (() => {
-                            const comp = compareDimensions(vehicle.familySpace.widthMm, usedCar.widthMm, 'mm', 'higher');
-                            return (
-                              <>
-                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                  {formatNumber(vehicle.familySpace.widthMm, 0)} mm
-                                </strong>
-                                <span className={`block text-[9px] ${comp.colorClass}`}>
-                                  {comp.text}
-                                </span>
-                              </>
-                            );
-                          })() : (
-                            <strong className="text-slate-900 dark:text-white">{formatNumber(vehicle.familySpace.widthMm, 0)} mm</strong>
-                          )}
-                        </div>
-
-                        <div>
-                          <span className="text-slate-500">Entre-eixos: </span>
-                          {usedCar ? (() => {
-                            const comp = compareDimensions(vehicle.familySpace.wheelbaseMm, usedCar.wheelbaseMm, 'mm', 'higher');
-                            return (
-                              <>
-                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                  {formatNumber(vehicle.familySpace.wheelbaseMm, 0)} mm
-                                </strong>
-                                <span className={`block text-[9px] ${comp.colorClass}`}>
-                                  {comp.text}
-                                </span>
-                              </>
-                            );
-                          })() : (
-                            <strong className="text-slate-900 dark:text-white">{formatNumber(vehicle.familySpace.wheelbaseMm, 0)} mm</strong>
-                          )}
-                        </div>
-
-                        <div>
-                          <span className="text-slate-500">Peso: </span>
-                          {usedCar ? (() => {
-                            const comp = compareDimensions(vehicle.familySpace.weightKg, usedCar.weightKg, 'kg', 'lower');
-                            return (
-                              <>
-                                <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                  {formatNumber(vehicle.familySpace.weightKg, 0)} kg
-                                </strong>
-                                <span className={`block text-[9px] ${comp.colorClass}`}>
-                                  {comp.text}
-                                </span>
-                              </>
-                            );
-                          })() : (
-                            <strong className="text-slate-900 dark:text-white">{formatNumber(vehicle.familySpace.weightKg, 0)} kg</strong>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Desempenho, Consumo & Porta-malas vs Usado */}
-                    {usedCar && (
-                      <div className="p-3 rounded-2xl bg-slate-50/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 space-y-1 text-[11px]">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                          Desempenho & TCO vs Usado ({usedCar.brand} {usedCar.model})
+                      {/* Comprimento */}
+                      <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Comprimento</span>
+                        <span className={`font-bold tabular-nums block mt-0.5 ${usedCar?.lengthMm && vehicle.familySpace.lengthMm > usedCar.lengthMm ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                          {formatNumber(vehicle.familySpace.lengthMm, 0)} mm
                         </span>
-                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                          <div>
-                            <span className="text-slate-500">Porta-Malas: </span>
-                            {usedCar.trunkVolumeLiters ? (() => {
-                              const comp = compareDimensions(vehicle.trunk.volumeLiters, usedCar.trunkVolumeLiters, 'L', 'higher');
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {vehicle.trunk.volumeLiters} L
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.trunk.volumeLiters} L</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">0-100 km/h: </span>
-                            {usedCar.zeroToHundredSeconds ? (() => {
-                              const comp = compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, usedCar.zeroToHundredSeconds, 's', 'lower', 1);
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {vehicle.powertrainSpec.zeroToHundredSeconds} s
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.zeroToHundredSeconds} s</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">Potência: </span>
-                            {usedCar.powerHp ? (() => {
-                              const comp = compareDimensions(vehicle.powertrainSpec.totalPowerHp, usedCar.powerHp, 'cv', 'higher');
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {vehicle.powertrainSpec.totalPowerHp} cv
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalPowerHp} cv</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">Torque: </span>
-                            {usedCar.torqueKgfm ? (() => {
-                              const comp = compareDimensions(vehicle.powertrainSpec.torqueKgfm, usedCar.torqueKgfm, 'kgfm', 'higher', 1);
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">Autonomia: </span>
-                            {usedCar.totalRangeKm && vehicle.powertrainSpec.totalRangeKm > 0 ? (() => {
-                              const comp = compareDimensions(vehicle.powertrainSpec.totalRangeKm, usedCar.totalRangeKm, 'km', 'higher');
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {vehicle.powertrainSpec.totalRangeKm} km
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalRangeKm ? `${vehicle.powertrainSpec.totalRangeKm} km` : '—'}</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">Airbags: </span>
-                            {usedCar.airbagsCount ? (() => {
-                              const comp = compareDimensions(vehicle.safety.airbagsCount, usedCar.airbagsCount, 'airbags', 'higher');
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {vehicle.safety.airbagsCount}
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.safety.airbagsCount}</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">Consumo Urbano: </span>
-                            {usedCar.urbanGasolineKmL ? (() => {
-                              const comp = compareDimensions(vehicle.consumption.urbanKmL, usedCar.urbanGasolineKmL, 'km/l', 'higher', 1);
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {vehicle.consumption.urbanKmL} km/l
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.urbanKmL} km/l</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">Consumo Estrada: </span>
-                            {usedCar.highwayGasolineKmL ? (() => {
-                              const comp = compareDimensions(vehicle.consumption.highwayKmL, usedCar.highwayGasolineKmL, 'km/l', 'higher', 1);
-                              return (
-                                <>
-                                  <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                    {vehicle.consumption.highwayKmL} km/l
-                                  </strong>
-                                  <span className={`block text-[9px] ${comp.colorClass}`}>
-                                    {comp.text}
-                                  </span>
-                                </>
-                              );
-                            })() : (
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.highwayKmL} km/l</strong>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500">TCO 3a vs Usado: </span>
-                            {usedCar.tco3Years ? (
-                              <span className={`block font-semibold tabular-nums ${tco.totalTCO <= usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400 font-bold'}`}>
-                                {tco.totalTCO <= usedCar.tco3Years
-                                  ? `- R$ ${formatMoney(usedCar.tco3Years - tco.totalTCO)}`
-                                  : `+ R$ ${formatMoney(tco.totalTCO - usedCar.tco3Years)}`}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 block">-</span>
-                            )}
-                          </div>
-                        </div>
                       </div>
-                    )}
+
+                      {/* Porta-Malas */}
+                      <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Porta-Malas</span>
+                        <span className={`font-bold tabular-nums block mt-0.5 ${usedCar?.trunkVolumeLiters && vehicle.trunk.volumeLiters < usedCar.trunkVolumeLiters ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                          {vehicle.trunk.volumeLiters} L
+                        </span>
+                      </div>
+
+                      {/* Consumo Urbano */}
+                      <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Consumo Urbano</span>
+                        <span className={`font-bold tabular-nums block mt-0.5 ${usedCar?.urbanGasolineKmL && vehicle.consumption.urbanKmL < usedCar.urbanGasolineKmL ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                          {vehicle.consumption.urbanKmL ? `${vehicle.consumption.urbanKmL} km/l` : '—'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -622,7 +400,8 @@ export function DashboardView({
               );
             })}
           </div>
-        </section>
+        )}
+      </section>
       )}
 
       {/* 4. Pendências que Podem Mudar a Decisão */}
@@ -671,49 +450,6 @@ export function DashboardView({
             ))}
           </div>
         )}
-      </section>
-
-      {/* 5. Requisitos Eliminatórios Familiares */}
-      <section className="p-5 sm:p-6 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/60 dark:border-white/10 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Regras e Filtros de Decisão Familiar
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Critérios rigorosos para garantia do espaço e acomodação com segurança.
-            </p>
-          </div>
-          <button
-            onClick={() => onNavigate('settings')}
-            className="text-xs font-semibold text-blue-600 dark:text-cyan-400 hover:underline cursor-pointer"
-          >
-            Ajustar parâmetros
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
-          <div className="p-3.5 bg-white/55 dark:bg-white/5 rounded-2xl border border-white/50 dark:border-white/5">
-            <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Passageiros & ISOFIX:</span>
-            <span className="font-semibold text-slate-900 dark:text-white">
-              Até 4 descarta; 5 requer ≥ 45,00 cm; &gt; 5 passa direto
-            </span>
-          </div>
-
-          <div className="p-3.5 bg-white/55 dark:bg-white/5 rounded-2xl border border-white/50 dark:border-white/5">
-            <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Estado de Licenciamento:</span>
-            <span className="font-semibold text-slate-900 dark:text-white">
-              Bahia (BA) · Alíquota IPVA: 2,5%
-            </span>
-          </div>
-
-          <div className="p-3.5 bg-white/55 dark:bg-white/5 rounded-2xl border border-white/50 dark:border-white/5">
-            <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Período do TCO:</span>
-            <span className="font-semibold text-slate-900 dark:text-white">
-              3 Anos (IPVA + Seguro + Revisões + Consumo)
-            </span>
-          </div>
-        </div>
       </section>
 
       {/* Modals */}

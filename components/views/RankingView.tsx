@@ -12,6 +12,7 @@ import {
   formatNumber,
   formatMoney,
   compareDimensions,
+  computeUnifiedRanking,
 } from '@/lib/calculations';
 import { StatusBadge, IsofixBadge } from '@/components/ui/StatusBadge';
 import { CalculationModal } from '@/components/ui/CalculationModal';
@@ -30,6 +31,7 @@ import {
   Sparkles,
   ArrowUpDown,
   Filter,
+  XCircle,
 } from 'lucide-react';
 
 interface RankingViewProps {
@@ -55,53 +57,21 @@ export function RankingView({
   const [showLiveWeights, setShowLiveWeights] = useState<boolean>(false);
   const [showLiveCriteria, setShowLiveCriteria] = useState<boolean>(false);
 
-  // Evaluate all vehicles
-  const evaluatedVehicles = vehicles.map((v) => {
-    const elim = checkElimination(v, preferences);
-    const scores = calculateCategoryScores(v, preferences);
-    const tco = calculateTCO(v, preferences);
-    const storePrice = v.financial.storePrice || v.financial.tablePrice || 0;
-    const explanation = generatePositionExplanation(v, scores, vehicles, preferences);
+  // Ranking oficial unificado (compartilhado com Dashboard e Relatório)
+  const {
+    eligibleVehicles,
+    unmeasuredVehicles,
+    viableRanked,
+    disqualifiedRanked,
+    fullRanking,
+  } = computeUnifiedRanking(vehicles, preferences);
 
-    // Custo-benefício complementar (Preço da Loja / Nota, TCO 3 Anos / Nota)
-    const costBenefitPrice =
-      scores.finalWeightedScore > 0
-        ? storePrice / scores.finalWeightedScore
-        : 0;
-    const costBenefitTco =
-      scores.finalWeightedScore > 0 ? tco.totalTCO / scores.finalWeightedScore : 0;
+  const unmeasuredCount = unmeasuredVehicles.length;
 
-    return {
-      vehicle: v,
-      elim,
-      scores,
-      tco,
-      storePrice,
-      explanation,
-      costBenefitPrice,
-      costBenefitTco,
-    };
-  });
-
-  // 1. Veículos viáveis (atendem a todos os requisitos), ordenados por nota ponderada decrescente
-  const viableRanked = evaluatedVehicles
-    .filter((item) => !item.elim.isEliminated)
-    .sort((a, b) => b.scores.finalWeightedScore - a.scores.finalWeightedScore);
-
-  // 2. Veículos desclassificados (colocados nas ÚLTIMAS POSIÇÕES do ranking)
-  const disqualifiedRanked = evaluatedVehicles
-    .filter((item) => item.elim.isEliminated)
-    .sort((a, b) => b.scores.finalWeightedScore - a.scores.finalWeightedScore);
-
-  // Ranking unificado: viáveis primeiro, desclassificados nas últimas posições
-  const fullRanking = [...viableRanked, ...disqualifiedRanked];
-
-  const [rankingFilter, setRankingFilter] = useState<'all' | 'viable' | 'disqualified'>('all');
+  const [rankingFilter, setRankingFilter] = useState<'ranking' | 'disqualified'>('ranking');
 
   const displayedRanked =
-    rankingFilter === 'viable'
-      ? viableRanked
-      : rankingFilter === 'disqualified'
+    rankingFilter === 'disqualified'
       ? disqualifiedRanked
       : fullRanking;
 
@@ -183,14 +153,11 @@ export function RankingView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-            Ferramenta Analítica de Decisão
-          </span>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Ranking Ponderado
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-            Maior pontuação considerando suas prioridades atuais. (Nunca &ldquo;o melhor carro absoluto&rdquo;).
+            Apenas veículos com ISOFIX validado (≥ {preferences.isofixMinDistanceCm ?? 45} cm) ou capacidade para mais de 5 passageiros.
           </p>
         </div>
 
@@ -229,22 +196,20 @@ export function RankingView({
         </div>
       </div>
 
-      {/* Interactive Live Weight & Criteria Simulator - iOS 27 Glassmorphic Control Deck */}
-      <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-150 border border-white/50 dark:border-white/10 space-y-4 shadow-[0_8px_30px_rgba(0,0,0,0.03)]">
+      {/* Interactive Live Weight & Criteria Simulator */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/50 dark:border-white/10 space-y-3 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-blue-500/15 text-blue-600 dark:text-cyan-400 flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
+            <Sparkles className="w-4 h-4 text-blue-600 dark:text-cyan-400" />
             <span className="font-bold text-slate-900 dark:text-white">
-              Simular Prioridades — Veja os veículos deslizarem em tempo real:
+              Simular Prioridades:
             </span>
           </div>
           <button
             onClick={onNavigateToSettings}
             className="text-blue-600 dark:text-cyan-400 hover:underline font-semibold text-xs self-start sm:self-auto cursor-pointer"
           >
-            Configurações Completas
+            Configurações
           </button>
         </div>
 
@@ -475,24 +440,26 @@ export function RankingView({
         )}
       </div>
 
-      {/* When zero vehicles registered */}
-      {vehicles.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
+      {/* When zero eligible vehicles in ranking */}
+      {eligibleVehicles.length === 0 ? (
+        <div className="p-10 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-cyan-400 flex items-center justify-center mx-auto">
             <Award className="w-6 h-6" />
           </div>
           <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            Nenhum veículo cadastrado no ranking
+            {vehicles.length === 0 ? 'Nenhum veículo cadastrado' : 'Nenhum veículo apto para o ranking'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Cadastre os carros candidatos à compra para visualizar o ranking analítico ponderado e simular prioridades em tempo real com animação de reordenação.
+            {vehicles.length === 0
+              ? 'Cadastre os carros candidatos à compra para visualizar o ranking ponderado.'
+              : `No ranking só são exibidos veículos com ISOFIX validado (≥ ${preferences.isofixMinDistanceCm ?? 45} cm) ou com capacidade para mais de 5 passageiros.`}
           </p>
           {onNewVehicle && (
             <button
               onClick={onNewVehicle}
-              className="mt-2 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
+              className="mt-2 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors cursor-pointer"
             >
-              + Cadastrar Primeiro Veículo
+              + Cadastrar Veículo
             </button>
           )}
         </div>
@@ -503,31 +470,14 @@ export function RankingView({
             <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-xs">
               <button
                 type="button"
-                onClick={() => setRankingFilter('all')}
+                onClick={() => setRankingFilter('ranking')}
                 className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-                  rankingFilter === 'all'
+                  rankingFilter === 'ranking'
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Todos no Ranking ({fullRanking.length})
-                {disqualifiedRanked.length > 0 && (
-                  <span className="ml-1.5 text-[10px] text-rose-600 dark:text-rose-400 font-bold">
-                    ({disqualifiedRanked.length} no final)
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRankingFilter('viable')}
-                className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-                  rankingFilter === 'viable'
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Apenas Aprovados ({viableRanked.length})
+                Ranking ({fullRanking.length})
               </button>
 
               {disqualifiedRanked.length > 0 && (
@@ -545,9 +495,11 @@ export function RankingView({
               )}
             </div>
 
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              Desclassificados: Preço &gt; R$ 200k, Comp. &gt; 4500mm ou ISOFIX &lt; 45cm ocupam as últimas posições.
-            </span>
+            {unmeasuredCount > 0 && (
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                {unmeasuredCount} {unmeasuredCount === 1 ? 'veículo fora do ranking' : 'veículos fora do ranking'} (aguarda medição de ISOFIX)
+              </span>
+            )}
           </div>
 
           {/* Full Ranked List with Framer Motion Layout Reordering Animation */}
@@ -606,17 +558,21 @@ export function RankingView({
                                 : 'bg-white/60 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-white/40 dark:border-white/5'
                             }`}
                           >
-                            <AnimatePresence mode="popLayout" initial={false}>
-                              <motion.span
-                                key={rankPosition}
-                                initial={{ opacity: 0, y: -12, scale: 0.7 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 12, scale: 0.7 }}
-                                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                              >
-                                #{rankPosition}
-                              </motion.span>
-                            </AnimatePresence>
+                            {isDisqualified ? (
+                              <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                            ) : (
+                              <AnimatePresence mode="popLayout" initial={false}>
+                                <motion.span
+                                  key={rankPosition}
+                                  initial={{ opacity: 0, y: -12, scale: 0.7 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 12, scale: 0.7 }}
+                                  transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                                >
+                                  #{rankPosition}
+                                </motion.span>
+                              </AnimatePresence>
+                            )}
                           </motion.div>
 
                           <div>
@@ -626,7 +582,7 @@ export function RankingView({
                               {isDisqualified && (
                                 <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
                                   <AlertTriangle className="w-3 h-3 text-rose-600" />
-                                  Desclassificado · Última Posição
+                                  Desclassificado
                                 </span>
                               )}
                               {changeState === 'up' && !isDisqualified && (
@@ -657,36 +613,16 @@ export function RankingView({
                           </div>
                         </div>
 
-                        {/* Right: Scores and TCO */}
-                        <div className="flex items-center justify-between sm:justify-end gap-6 text-right pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800">
-                          <div>
-                            <span className="text-xs text-slate-500 block">Dist. ISOFIX</span>
-                            <span className={`text-sm font-bold tabular-nums block ${vehicle.familySpace.isofixDistanceCm !== null && vehicle.familySpace.isofixDistanceCm < (preferences.isofixMinDistanceCm ?? 45) ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                              {vehicle.familySpace.isofixDistanceCm !== null && vehicle.familySpace.isofixDistanceCm !== undefined
-                                ? `${formatNumber(vehicle.familySpace.isofixDistanceCm, 2)} cm`
-                                : 'Em branco'}
-                            </span>
-                            <span className="text-[10px] text-slate-400 block">{isofixRating.rating}</span>
-                          </div>
-
-                          <div>
-                            <span className="text-xs text-slate-500 block">TCO (3 Anos BA)</span>
-                            <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
-                              R$ {formatMoney(tco.totalTCO)}
-                            </span>
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block">
-                              R$ {formatMoney(tco.monthlyTCO)}/mês
-                            </span>
-                          </div>
-
+                        {/* Right: Score */}
+                        <div className="flex items-center justify-between sm:justify-end gap-4 text-right pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800">
                           <div className="pl-4 sm:border-l border-slate-200 dark:border-slate-700">
                             <span className="text-xs text-slate-500 block">
-                              {isDisqualified ? 'Status Ranking' : 'Nota Ponderada'}
+                              {isDisqualified ? 'Status' : 'Nota Ponderada'}
                             </span>
                             <div className="flex items-baseline justify-end gap-1">
                               {isDisqualified ? (
-                                <span className="text-base font-bold text-rose-600 dark:text-rose-400 tabular-nums">
-                                  #{rankPosition}
+                                <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                                  Desclassificado
                                 </span>
                               ) : (
                                 <>
@@ -710,23 +646,79 @@ export function RankingView({
                         </div>
                       </div>
 
+                      {/* Metrics grid: Dados essenciais e principais métricas */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs pt-3">
+                        {/* Preço da Loja */}
+                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Preço da Loja</span>
+                          <span className={`font-bold tabular-nums block mt-0.5 ${item.storePrice > (preferences.maxStorePrice ?? 200000) ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                            R$ {formatMoney(item.storePrice)}
+                          </span>
+                        </div>
+
+                        {/* Distância ISOFIX */}
+                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Distância ISOFIX</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`font-bold tabular-nums ${vehicle.familySpace.isofixDistanceCm !== null && vehicle.familySpace.isofixDistanceCm < (preferences.isofixMinDistanceCm ?? 45) ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                              {vehicle.familySpace.isofixDistanceCm !== null && vehicle.familySpace.isofixDistanceCm !== undefined
+                                ? `${formatNumber(vehicle.familySpace.isofixDistanceCm, 2)} cm`
+                                : 'Em branco'}
+                            </span>
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${isofixRating.badgeBg} ${isofixRating.badgeText}`}>
+                              {isofixRating.rating}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* TCO 3 Anos (BA) */}
+                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">TCO (3 Anos BA)</span>
+                          <span className={`font-bold tabular-nums block mt-0.5 ${preferences.usedCar?.tco3Years && tco.totalTCO > preferences.usedCar.tco3Years ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                            R$ {formatMoney(tco.totalTCO)}
+                          </span>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block">
+                            R$ {formatMoney(tco.monthlyTCO)}/mês
+                          </span>
+                        </div>
+
+                        {/* Comprimento */}
+                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Comprimento</span>
+                          <span className={`font-bold tabular-nums block mt-0.5 ${preferences.usedCar?.lengthMm && vehicle.familySpace.lengthMm > preferences.usedCar.lengthMm ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                            {formatNumber(vehicle.familySpace.lengthMm, 0)} mm
+                          </span>
+                        </div>
+
+                        {/* Porta-Malas */}
+                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Porta-Malas</span>
+                          <span className={`font-bold tabular-nums block mt-0.5 ${preferences.usedCar?.trunkVolumeLiters && vehicle.trunk.volumeLiters < preferences.usedCar.trunkVolumeLiters ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                            {vehicle.trunk.volumeLiters} L
+                          </span>
+                        </div>
+
+                        {/* Consumo Urbano */}
+                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Consumo Urbano</span>
+                          <span className={`font-bold tabular-nums block mt-0.5 ${preferences.usedCar?.urbanGasolineKmL && vehicle.consumption.urbanKmL < preferences.usedCar.urbanGasolineKmL ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
+                            {vehicle.consumption.urbanKmL ? `${vehicle.consumption.urbanKmL} km/l` : '—'}
+                          </span>
+                        </div>
+                      </div>
+
                       {/* Motivos de Desclassificação em Destaque Vermelho */}
                       {isDisqualified && (
                         <div className="mt-3 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2.5">
                           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                           <div className="space-y-1">
                             <span className="font-bold text-rose-700 dark:text-rose-400 block">
-                              Desclassificado para as últimas posições por critérios eliminatórios:
+                              Motivo da desclassificação:
                             </span>
                             <div className="flex flex-wrap gap-1.5 pt-0.5">
                               {item.elim.isPriceDisqualified && (
                                 <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-900 dark:text-rose-100 text-[11px] font-bold border border-rose-500/30">
                                   Valor de R$ {formatMoney(item.storePrice)} acima do teto de R$ {formatMoney(preferences.maxStorePrice ?? 200000)}
-                                </span>
-                              )}
-                              {item.elim.isLengthDisqualified && (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-900 dark:text-rose-100 text-[11px] font-bold border border-rose-500/30">
-                                  Comprimento de {formatNumber(vehicle.familySpace.lengthMm, 0)} mm muito acima de {formatNumber(preferences.maxLengthMm ?? 4500, 0)} mm
                                 </span>
                               )}
                               {item.elim.isIsofixDisqualified && (
@@ -746,312 +738,84 @@ export function RankingView({
                         </div>
                       )}
 
-                      {/* Analytical Headline: Por que está nesta posição? */}
-                      <div className="mt-4 p-3.5 rounded-2xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5 backdrop-blur-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4)] text-xs space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        Por que está nesta posição?
-                      </span>
-                      <button
-                        onClick={() => setExpandedVehicleId(isExpanded ? null : vehicle.id)}
-                        className="text-xs text-blue-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-                      >
-                        <span>{isExpanded ? 'Recolher detalhes' : 'Ver análise detalhada'}</span>
-                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                      {explanation.headline}. {explanation.comparativeNote}
-                    </p>
-
-                    {/* Expanded Breakdown */}
-                    {isExpanded && (
-                      <div className="pt-3 border-t border-white/40 dark:border-white/5 space-y-3 animate-in fade-in duration-200">
-                        <div className="grid sm:grid-cols-2 gap-3">
-                          <div>
-                            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">
-                              Pontos Fortes Principais
-                            </span>
-                            <ul className="space-y-1 text-slate-600 dark:text-slate-300">
-                              {explanation.strengths.map((s, i) => (
-                                <li key={i} className="flex items-start gap-1.5">
-                                  <span className="text-emerald-600 font-bold">•</span>
-                                  <span>{s}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          <div>
-                            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block mb-1">
-                              Pontos de Atenção / Limitações
-                            </span>
-                            <ul className="space-y-1 text-slate-600 dark:text-slate-300">
-                              {explanation.weaknesses.map((w, i) => (
-                                <li key={i} className="flex items-start gap-1.5">
-                                  <span className="text-amber-600 font-bold">•</span>
-                                  <span>{w}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-
-                        {/* Dimensões & Peso */}
-                        <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md text-xs shadow-2xs space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                            Dimensões & Peso (vs Usado Cadastrado)
+                      {/* Detalhes & Pontos de Decisão (Expansível) */}
+                      <div className="mt-4 p-3 rounded-2xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5 backdrop-blur-md shadow-xs text-xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            Pontos Fortes & Indicadores
                           </span>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                            <div>
-                              <span className="text-slate-500">Comp: </span>
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.lengthMm, 0)} mm</strong>
-                              {preferences.usedCar && (
-                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                                  {compareDimensions(vehicle.familySpace.lengthMm, preferences.usedCar.lengthMm).text}
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Larg: </span>
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.widthMm, 0)} mm</strong>
-                              {preferences.usedCar && (
-                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                                  {compareDimensions(vehicle.familySpace.widthMm, preferences.usedCar.widthMm).text}
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Entre-eixos: </span>
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.wheelbaseMm, 0)} mm</strong>
-                              {preferences.usedCar && (
-                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                                  {compareDimensions(vehicle.familySpace.wheelbaseMm, preferences.usedCar.wheelbaseMm).text}
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Peso: </span>
-                              <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.familySpace.weightKg, 0)} kg</strong>
-                              {preferences.usedCar && (
-                                <span className="block text-[9px] text-blue-600 dark:text-cyan-400">
-                                  {compareDimensions(vehicle.familySpace.weightKg, preferences.usedCar.weightKg, 'kg').text}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          <button
+                            onClick={() => setExpandedVehicleId(isExpanded ? null : vehicle.id)}
+                            className="text-xs text-blue-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                          >
+                            <span>{isExpanded ? 'Recolher detalhes' : 'Ver detalhes'}</span>
+                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
                         </div>
 
-                        {/* Desempenho, Consumo & Porta-malas vs Usado */}
-                        {preferences.usedCar && (
-                          <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md text-xs shadow-2xs space-y-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                              Comparativo vs Usado ({preferences.usedCar.brand} {preferences.usedCar.model})
-                            </span>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-[11px]">
+                        {/* Expanded Breakdown */}
+                        {isExpanded && (
+                          <div className="pt-3 border-t border-white/40 dark:border-white/5 space-y-3 animate-in fade-in duration-200">
+                            <div className="grid sm:grid-cols-2 gap-3">
                               <div>
-                                <span className="text-slate-500">Porta-Malas: </span>
-                                {preferences.usedCar.trunkVolumeLiters ? (() => {
-                                  const comp = compareDimensions(vehicle.trunk.volumeLiters, preferences.usedCar.trunkVolumeLiters, 'L', 'higher');
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {vehicle.trunk.volumeLiters} L
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.trunk.volumeLiters} L</strong>
-                                )}
+                                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">
+                                  Pontos Fortes Principais
+                                </span>
+                                <ul className="space-y-1 text-slate-600 dark:text-slate-300">
+                                  {explanation.strengths.map((s, i) => (
+                                    <li key={i} className="flex items-start gap-1.5">
+                                      <span className="text-emerald-600 font-bold">•</span>
+                                      <span>{s}</span>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
 
                               <div>
-                                <span className="text-slate-500">0-100 km/h: </span>
-                                {preferences.usedCar.zeroToHundredSeconds ? (() => {
-                                  const comp = compareDimensions(vehicle.powertrainSpec.zeroToHundredSeconds, preferences.usedCar.zeroToHundredSeconds, 's', 'lower', 1);
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {vehicle.powertrainSpec.zeroToHundredSeconds} s
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.zeroToHundredSeconds} s</strong>
-                                )}
+                                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block mb-1">
+                                  Pontos de Atenção
+                                </span>
+                                <ul className="space-y-1 text-slate-600 dark:text-slate-300">
+                                  {explanation.weaknesses.map((w, i) => (
+                                    <li key={i} className="flex items-start gap-1.5">
+                                      <span className="text-amber-600 font-bold">•</span>
+                                      <span>{w}</span>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
+                            </div>
 
+                            {/* Complementary Cost/Benefit Indicators */}
+                            <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs shadow-2xs">
                               <div>
-                                <span className="text-slate-500">Potência: </span>
-                                {preferences.usedCar.powerHp ? (() => {
-                                  const comp = compareDimensions(vehicle.powertrainSpec.totalPowerHp, preferences.usedCar.powerHp, 'cv', 'higher');
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {vehicle.powertrainSpec.totalPowerHp} cv
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalPowerHp} cv</strong>
-                                )}
+                                <span className="text-slate-500 block text-[10px]">Preço / Ponto:</span>
+                                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
+                                  R$ {formatMoney(costBenefitPrice)}
+                                </span>
                               </div>
-
                               <div>
-                                <span className="text-slate-500">Torque: </span>
-                                {preferences.usedCar.torqueKgfm ? (() => {
-                                  const comp = compareDimensions(vehicle.powertrainSpec.torqueKgfm, preferences.usedCar.torqueKgfm, 'kgfm', 'higher', 1);
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{formatNumber(vehicle.powertrainSpec.torqueKgfm, 1)} kgfm</strong>
-                                )}
+                                <span className="text-slate-500 block text-[10px]">TCO 3a / Ponto:</span>
+                                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
+                                  R$ {formatMoney(costBenefitTco)}
+                                </span>
                               </div>
-
                               <div>
-                                <span className="text-slate-500">Autonomia: </span>
-                                {preferences.usedCar.totalRangeKm && vehicle.powertrainSpec.totalRangeKm > 0 ? (() => {
-                                  const comp = compareDimensions(vehicle.powertrainSpec.totalRangeKm, preferences.usedCar.totalRangeKm, 'km', 'higher');
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {vehicle.powertrainSpec.totalRangeKm} km
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.powertrainSpec.totalRangeKm ? `${vehicle.powertrainSpec.totalRangeKm} km` : '—'}</strong>
-                                )}
+                                <span className="text-slate-500 block text-[10px]">Nota Espaço Familiar:</span>
+                                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
+                                  {scores.familySpace} / 100
+                                </span>
                               </div>
-
                               <div>
-                                <span className="text-slate-500">Airbags: </span>
-                                {preferences.usedCar.airbagsCount ? (() => {
-                                  const comp = compareDimensions(vehicle.safety.airbagsCount, preferences.usedCar.airbagsCount, 'airbags', 'higher');
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {vehicle.safety.airbagsCount}
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.safety.airbagsCount}</strong>
-                                )}
-                              </div>
-
-                              <div>
-                                <span className="text-slate-500">Consumo Urbano: </span>
-                                {preferences.usedCar.urbanGasolineKmL ? (() => {
-                                  const comp = compareDimensions(vehicle.consumption.urbanKmL, preferences.usedCar.urbanGasolineKmL, 'km/l', 'higher', 1);
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {vehicle.consumption.urbanKmL} km/l
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.urbanKmL} km/l</strong>
-                                )}
-                              </div>
-
-                              <div>
-                                <span className="text-slate-500">Consumo Estrada: </span>
-                                {preferences.usedCar.highwayGasolineKmL ? (() => {
-                                  const comp = compareDimensions(vehicle.consumption.highwayKmL, preferences.usedCar.highwayGasolineKmL, 'km/l', 'higher', 1);
-                                  return (
-                                    <>
-                                      <strong className={`tabular-nums ${comp.isWorse ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                        {vehicle.consumption.highwayKmL} km/l
-                                      </strong>
-                                      <span className={`block text-[9px] ${comp.colorClass}`}>
-                                        {comp.text}
-                                      </span>
-                                    </>
-                                  );
-                                })() : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">{vehicle.consumption.highwayKmL} km/l</strong>
-                                )}
-                              </div>
-
-                              <div>
-                                <span className="text-slate-500">TCO 3 Anos: </span>
-                                {preferences.usedCar.tco3Years ? (
-                                  <>
-                                    <strong className={`tabular-nums ${tco.totalTCO > preferences.usedCar.tco3Years ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                                      R$ {formatMoney(tco.totalTCO)}
-                                    </strong>
-                                    <span className={`block text-[9px] font-semibold ${tco.totalTCO <= preferences.usedCar.tco3Years ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                      {tco.totalTCO <= preferences.usedCar.tco3Years
-                                        ? `- R$ ${formatMoney(preferences.usedCar.tco3Years - tco.totalTCO)} vs usado`
-                                        : `+ R$ ${formatMoney(tco.totalTCO - preferences.usedCar.tco3Years)} vs usado`}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <strong className="text-slate-900 dark:text-white tabular-nums">R$ {formatMoney(tco.totalTCO)}</strong>
-                                )}
+                                <span className="text-slate-500 block text-[10px]">Nota TCO & Custos:</span>
+                                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
+                                  {scores.tco} / 100
+                                </span>
                               </div>
                             </div>
                           </div>
                         )}
-
-                        {/* Complementary Indicators */}
-                        <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-white/50 dark:border-white/5 backdrop-blur-md grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs shadow-2xs">
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Preço Efetivo / Nota:</span>
-                            <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                              R$ {formatMoney(costBenefitPrice)} por ponto
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">TCO 3a / Nota:</span>
-                            <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                              R$ {formatMoney(costBenefitTco)} por ponto
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Nota Espaço Familiar:</span>
-                            <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                              {scores.familySpace} / 100
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Nota TCO & Custos:</span>
-                            <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                              {scores.tco} / 100
-                            </span>
-                          </div>
-                        </div>
                       </div>
-                    )}
-                  </div>
 
                   {/* Footer Buttons */}
                   <div className="mt-4 pt-3 border-t border-white/40 dark:border-white/5 flex items-center justify-between text-xs">
@@ -1075,45 +839,6 @@ export function RankingView({
               </AnimatePresence>
             )}
           </motion.div>
-
-          {/* Card Explicativo das Regras de Desclassificação do Ranking */}
-          <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-900 dark:text-white block">
-                  Critérios de Desclassificação no Ranking
-                </span>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Veículos que violam requisitos essenciais são mantidos na tabela, porém rebaixados para as <strong>últimas posições</strong>:
-                </p>
-                <div className="flex flex-wrap gap-2 mt-1.5 text-[11px]">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    Valor acima de R$ 200.000,00
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    Comprimento muito acima de 4.500 mm
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    Distância do ISOFIX abaixo de 45 cm
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {onNavigateToSettings && (
-              <button
-                type="button"
-                onClick={onNavigateToSettings}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-750 transition-all shrink-0 cursor-pointer self-start sm:self-auto"
-              >
-                Ajustar Limites
-              </button>
-            )}
-          </div>
         </div>
       )}
 

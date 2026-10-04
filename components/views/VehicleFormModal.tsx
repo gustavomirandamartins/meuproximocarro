@@ -280,12 +280,50 @@ export function VehicleFormModal({
             </h2>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-emerald-600/20 cursor-pointer transition-all active:scale-95"
+              title="Salvar veículo agora"
+            >
+              <Check className="w-4 h-4" />
+              <span>Salvar</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Step Navigation Tabs */}
+        <div className="flex items-center gap-1 px-4 py-2 bg-slate-50/80 dark:bg-white/5 border-b border-slate-200/60 dark:border-white/5 overflow-x-auto text-[11px] font-medium">
+          {[
+            { s: 1, label: 'Identificação' },
+            { s: 2, label: 'Preço' },
+            { s: 3, label: 'ISOFIX & Espaço' },
+            { s: 4, label: 'Porta-malas' },
+            { s: 5, label: 'Motor' },
+            { s: 6, label: 'Segurança' },
+            { s: 7, label: 'Custos' },
+          ].map((item) => (
+            <button
+              key={item.s}
+              type="button"
+              onClick={() => setStep(item.s)}
+              className={`px-2.5 py-1 rounded-lg transition-all shrink-0 cursor-pointer ${
+                step === item.s
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/10'
+              }`}
+            >
+              {item.s}. {item.label}
+            </button>
+          ))}
         </div>
 
         {/* Progress Bar */}
@@ -1377,11 +1415,22 @@ export function VehicleFormModal({
           </div>
 
           <div className="flex items-center gap-2">
+            {step < totalSteps && (
+              <button
+                type="button"
+                onClick={handleSave}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-sm shadow-emerald-600/20 cursor-pointer transition-all active:scale-95"
+              >
+                <Check className="w-4 h-4" />
+                <span>Salvar</span>
+              </button>
+            )}
+
             {step < totalSteps ? (
               <button
                 type="button"
                 onClick={() => setStep((s) => Math.min(totalSteps, s + 1))}
-                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer transition-all"
+                className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
               >
                 <span>Avançar</span>
                 <ArrowRight className="w-4 h-4" />
@@ -1390,7 +1439,7 @@ export function VehicleFormModal({
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
+                className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all active:scale-95"
               >
                 <Check className="w-4 h-4" />
                 <span>Salvar Veículo</span>
