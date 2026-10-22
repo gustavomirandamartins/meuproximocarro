@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
 import { calculateTCO, calculateCategoryScores, checkElimination, getIsofixRating, formatMoney, formatNumber, compareDimensions } from '@/lib/calculations';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Check, X, Scale, AlertTriangle } from 'lucide-react';
+import { Check, X, Scale, AlertTriangle, Sparkles } from 'lucide-react';
 
 interface ComparisonViewProps {
   vehicles: Vehicle[];
@@ -97,6 +97,7 @@ export function ComparisonView({
   const bestScoreIdx = getBestIndex((item) => item.scores.finalWeightedScore, 'max');
   const bestPriceIdx = getBestIndex((item) => item.vehicle.financial.storePrice || item.vehicle.financial.tablePrice, 'min');
   const bestPowerIdx = getBestIndex((item) => item.vehicle.powertrainSpec.totalPowerHp, 'max');
+  const bestImpressionIdx = getBestIndex((item) => item.scores.userImpressionRaw || 0, 'max');
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6 text-xs">
@@ -618,6 +619,121 @@ export function ComparisonView({
                 {calculatedMap.map(({ vehicle, tco }) => (
                   <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
                     R$ {formatMoney(tco.breakdown.consumption3Years)}
+                  </td>
+                ))}
+              </tr>
+
+              {/* SEÇÃO 7: MINHA IMPRESSÃO GERAL & NOTA FINAL (PESO 50% / 50%) */}
+              <tr className="bg-slate-100/70 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-white">
+                <td colSpan={calculatedMap.length + 1} className="px-4 py-2 uppercase tracking-wider text-blue-700 dark:text-cyan-400">
+                  7. Avaliação: Minha Impressão Geral & Nota Final (Peso 50% / 50%)
+                </td>
+              </tr>
+
+              {/* Nota Final Ponderada */}
+              <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5 font-bold">
+                <td className="p-3.5 text-slate-900 dark:text-white">
+                  <span>Nota Final Ponderada</span>
+                  <span className="block text-[10px] font-normal text-slate-500">
+                    50% Técnico + 50% Impressão
+                  </span>
+                </td>
+                {calculatedMap.map(({ vehicle, scores, elim }, idx) => (
+                  <td
+                    key={vehicle.id}
+                    className={`p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums ${
+                      idx === bestScoreIdx && !elim.isEliminated
+                        ? 'bg-blue-500/10 text-blue-700 dark:text-cyan-300 font-extrabold text-base'
+                        : 'text-sm font-bold text-slate-900 dark:text-white'
+                    }`}
+                  >
+                    <span>{formatNumber(scores.finalWeightedScore, 1)} / 100</span>
+                    {elim.isPendingMeasurement ? (
+                      <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                        Nota zero (ISOFIX pendente)
+                      </span>
+                    ) : elim.isEliminated ? (
+                      <span className="block text-[10px] text-rose-600 font-normal">
+                        Desclassificado
+                      </span>
+                    ) : null}
+                  </td>
+                ))}
+              </tr>
+
+              {/* Critérios Técnicos Objetivos (50%) */}
+              <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
+                <td className="p-3.5 text-slate-700 dark:text-slate-300 font-medium">
+                  Subtotal Técnico (50%)
+                </td>
+                {calculatedMap.map(({ vehicle, scores }) => (
+                  <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums">
+                    <strong>{formatNumber(scores.technicalScore, 1)} / 100</strong>
+                    <span className="block text-[10px] text-slate-500">
+                      +{formatNumber(scores.technicalScore * 0.5, 1)} pts
+                    </span>
+                  </td>
+                ))}
+              </tr>
+
+              {/* Minha Impressão Geral (50%) */}
+              <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
+                <td className="p-3.5 text-slate-700 dark:text-slate-300 font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
+                    <span>Minha Impressão Geral (50%)</span>
+                  </div>
+                </td>
+                {calculatedMap.map(({ vehicle, scores }, idx) => {
+                  const isBest = idx === bestImpressionIdx && scores.userImpressionRaw !== null;
+                  return (
+                    <td
+                      key={vehicle.id}
+                      className={`p-3.5 border-l border-slate-100 dark:border-slate-800 tabular-nums ${
+                        isBest ? 'bg-cyan-500/10 font-bold text-cyan-700 dark:text-cyan-300' : ''
+                      }`}
+                    >
+                      {scores.userImpressionRaw !== null ? (
+                        <>
+                          <strong>{formatNumber(scores.userImpressionRaw, 1)} / 10</strong>
+                          <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            +{formatNumber(scores.userImpressionRaw * 5, 1)} pts
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 italic">Pendente de avaliação</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+
+              {/* Test-Drive Realizado */}
+              <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
+                <td className="p-3.5 text-slate-700 dark:text-slate-300 font-medium">
+                  Test-Drive Realizado?
+                </td>
+                {calculatedMap.map(({ vehicle }) => (
+                  <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800">
+                    {vehicle.userImpression?.testDriveConducted ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <Check className="w-3.5 h-3.5" /> Sim, ao volante
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Não registrado</span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+
+              {/* Observações e Sensações ao Dirigir */}
+              <tr className="hover:bg-slate-50/50 dark:hover:bg-white/5">
+                <td className="p-3.5 text-slate-700 dark:text-slate-300 font-medium">
+                  Sensações & Anotações Pessoais
+                </td>
+                {calculatedMap.map(({ vehicle }) => (
+                  <td key={vehicle.id} className="p-3.5 border-l border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed italic">
+                    {vehicle.userImpression?.notes ? `"${vehicle.userImpression.notes}"` : '—'}
                   </td>
                 ))}
               </tr>

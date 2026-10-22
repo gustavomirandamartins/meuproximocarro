@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { Vehicle, PowertrainType, VehicleStatus, UserPreferences, PaymentCondition } from '@/types/vehicle';
 import { formatMoney, formatNumber, calculatePaymentOption, compareDimensions, checkElimination } from '@/lib/calculations';
 import { PtBrNumberInput } from '@/components/ui/PtBrNumberInput';
-import { X, ArrowRight, ArrowLeft, Check, Plus, Trash2, Calculator, Info, AlertTriangle } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Check, Plus, Trash2, Calculator, Info, AlertTriangle, Sparkles, Star, RotateCcw } from 'lucide-react';
+import { calculateCategoryScores } from '@/lib/calculations';
 
 interface VehicleFormModalProps {
   vehicleToEdit: Vehicle | null;
@@ -88,6 +89,13 @@ function createInitialVehicle(prefs?: UserPreferences): Vehicle {
       panoramicSunroof: false,
     },
 
+    // 8. Avaliação do Usuário (Minha Impressão Geral - Peso 50%)
+    userImpression: {
+      score: null,
+      notes: '',
+      testDriveConducted: false,
+    },
+
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -101,7 +109,7 @@ export function VehicleFormModal({
   onSave,
 }: VehicleFormModalProps) {
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 7;
+  const totalSteps = 8;
 
   const usedCar = preferences?.usedCar;
 
@@ -273,6 +281,7 @@ export function VehicleFormModal({
                 {step === 5 && 'Motorização & Bateria'}
                 {step === 6 && 'Consumo & Segurança'}
                 {step === 7 && 'Conforto, Custos & Garantia'}
+                {step === 8 && 'Avaliação do Usuário — Minha Impressão Geral'}
               </span>
             </div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
@@ -310,6 +319,7 @@ export function VehicleFormModal({
             { s: 5, label: 'Motor' },
             { s: 6, label: 'Segurança' },
             { s: 7, label: 'Custos' },
+            { s: 8, label: 'Minha Impressão' },
           ].map((item) => (
             <button
               key={item.s}
@@ -1389,6 +1399,272 @@ export function VehicleFormModal({
               </div>
             </div>
           )}
+
+          {/* ========================================================= */}
+          {/* ETAPA 8: Avaliação do Usuário — Minha Impressão Geral */}
+          {/* ========================================================= */}
+          {step === 8 && (() => {
+            const currentScores = preferences ? calculateCategoryScores(formData, preferences) : null;
+            const currentImpression = formData.userImpression?.score;
+            const hasImpression = currentImpression !== null && currentImpression !== undefined;
+            const rawScore = hasImpression ? Number(currentImpression) : null;
+
+            return (
+              <div className="space-y-5">
+                {/* Header Banner com destaque para o peso de 50% */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-cyan-500/10 dark:from-blue-500/20 dark:via-indigo-500/20 dark:to-cyan-400/20 border border-blue-200/60 dark:border-blue-500/30 backdrop-blur-xl space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          Minha Impressão Geral
+                        </h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Sua avaliação subjetiva e experiência prática ao volante
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold shadow-sm shadow-blue-600/30">
+                      Peso de 50% na Nota Final
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pt-1">
+                    Esta nota define exatamente <strong>metade (50%) da pontuação final</strong> do veículo no ranking oficial. A outra metade (50%) é calculada a partir da média ponderada dos critérios técnicos objetivos (espaço familiar, TCO Bahia, segurança, motorização, etc.).
+                  </p>
+                </div>
+
+                {/* Bloco de Avaliação da Nota */}
+                <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-white/10 backdrop-blur-2xl shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        Nota Geral do Usuário (0 a 10):
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        {hasImpression
+                          ? `Equivale a ${formatNumber(rawScore! * 10, 1)} pontos na escala de 0 a 100`
+                          : 'Ainda não avaliado (pendente)'}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="flex items-baseline justify-end gap-1">
+                        <span className={`text-2xl sm:text-3xl font-extrabold tabular-nums ${hasImpression ? 'text-blue-600 dark:text-cyan-400' : 'text-slate-400'}`}>
+                          {hasImpression ? formatNumber(rawScore!, 1) : '—'}
+                        </span>
+                        <span className="text-xs text-slate-400 font-semibold">/ 10</span>
+                      </div>
+                      {hasImpression && (
+                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold block">
+                          +{formatNumber(rawScore! * 5, 1)} pts na nota final
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Preset quick buttons */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-slate-500 block">Atalhos rápidos de nota:</span>
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+                      {[5.0, 6.0, 7.0, 7.5, 8.0, 8.5, 9.0, 10.0].map((val) => {
+                        const isSelected = rawScore === val;
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                userImpression: {
+                                  score: val,
+                                  notes: formData.userImpression?.notes || '',
+                                  testDriveConducted: formData.userImpression?.testDriveConducted ?? true,
+                                },
+                              });
+                            }}
+                            className={`h-10 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/30'
+                                : 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15'
+                            }`}
+                          >
+                            {formatNumber(val, 1)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Range Slider */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex justify-between text-[11px] text-slate-500">
+                      <span>0.0 (Fraco)</span>
+                      <span>5.0 (Neutro)</span>
+                      <span>10.0 (Excepcional)</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={rawScore ?? 7.5}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setFormData({
+                          ...formData,
+                          userImpression: {
+                            score: val,
+                            notes: formData.userImpression?.notes || '',
+                            testDriveConducted: formData.userImpression?.testDriveConducted ?? true,
+                          },
+                        });
+                      }}
+                      className="w-full accent-blue-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Botão para limpar */}
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          userImpression: {
+                            score: null,
+                            notes: formData.userImpression?.notes || '',
+                            testDriveConducted: formData.userImpression?.testDriveConducted ?? false,
+                          },
+                        });
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Limpar avaliação (deixar pendente)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status do Test-Drive */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="font-bold text-slate-900 dark:text-white block">
+                        Test-Drive Realizado
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Marque se você já dirigiu o veículo pessoalmente na concessionária
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={!!formData.userImpression?.testDriveConducted}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          userImpression: {
+                            score: formData.userImpression?.score ?? null,
+                            notes: formData.userImpression?.notes || '',
+                            testDriveConducted: e.target.checked,
+                          },
+                        });
+                      }}
+                      className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
+                    />
+                  </label>
+                </div>
+
+                {/* Anotações Pessoais & Sensações ao Volante */}
+                <div className="space-y-1.5">
+                  <label className="block text-slate-700 dark:text-slate-300 font-bold">
+                    Observações Pessoais & Sensações ao Dirigir:
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Registre percepções sobre resposta do motor, calibração da suspensão nas ruas de Salvador, nível de ruído interno, visibilidade, ergonomia dos comandos e atendimento da loja.
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={formData.userImpression?.notes || ''}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        userImpression: {
+                          score: formData.userImpression?.score ?? null,
+                          notes: e.target.value,
+                          testDriveConducted: formData.userImpression?.testDriveConducted ?? false,
+                        },
+                      });
+                    }}
+                    placeholder="Ex: Excelente posição de guiar, suspensão absorve muito bem o asfalto irregular. Acabamento das portas e painel muito superior aos rivais..."
+                    className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder:text-slate-400 leading-relaxed"
+                  />
+                </div>
+
+                {/* Prévia da Ponderação da Nota Final */}
+                {currentScores && (
+                  <div className="p-4 sm:p-5 rounded-3xl bg-slate-950 text-white border border-white/10 shadow-lg space-y-3">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Simulação da Composição da Nota Final:
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                        <span className="text-[10px] text-slate-400 block">Critérios Técnicos (Peso 50%)</span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-base font-bold tabular-nums">
+                            {formatNumber(currentScores.technicalScore, 1)}
+                          </span>
+                          <span className="text-[10px] text-slate-400">/ 100</span>
+                        </div>
+                        <span className="text-[10px] text-blue-400 font-semibold block mt-0.5">
+                          Contribui com {formatNumber(currentScores.technicalScore * 0.5, 1)} pts
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                        <span className="text-[10px] text-slate-400 block">Minha Impressão (Peso 50%)</span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-base font-bold tabular-nums text-cyan-400">
+                            {hasImpression ? formatNumber(rawScore!, 1) : '—'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">/ 10</span>
+                        </div>
+                        <span className="text-[10px] text-cyan-300 font-semibold block mt-0.5">
+                          {hasImpression
+                            ? `Contribui com ${formatNumber(rawScore! * 5, 1)} pts`
+                            : 'Pendente de avaliação'}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-2xl bg-blue-600/30 border border-blue-400/40">
+                        <span className="text-[10px] text-blue-200 block">Nota Final Ponderada</span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-xl font-extrabold tabular-nums text-white">
+                            {formatNumber(currentScores.finalWeightedScore, 1)}
+                          </span>
+                          <span className="text-[10px] text-blue-200">/ 100</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-300 font-semibold block mt-0.5">
+                          {currentScores.finalWeightedScore > 0 ? 'Nota Calculada' : 'Nota Zero (ISOFIX pendente)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {currentScores.finalWeightedScore === 0 && (
+                      <p className="text-[11px] text-amber-300/90 pt-1 border-t border-white/10">
+                        Aviso: O veículo está com a medição de ISOFIX pendente (ou insuficiente). A nota final permanecerá zero até que a medição presencial seja realizada e inserida.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Modal Footer Controls */}

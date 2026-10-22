@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Scale,
   Car,
+  Sparkles,
 } from 'lucide-react';
 
 interface VehiclesViewProps {
@@ -183,7 +184,9 @@ export function VehiclesView({
                     <div className="text-right shrink-0 px-2 py-1 rounded-xl bg-white/70 dark:bg-white/10 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-2xs">
                       <span
                         className={`text-lg font-bold tabular-nums ${
-                          elim.isEliminated
+                          elim.isPendingMeasurement
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : elim.isEliminated
                             ? 'text-slate-500 dark:text-slate-400 line-through'
                             : 'text-slate-900 dark:text-white'
                         }`}
@@ -194,8 +197,8 @@ export function VehiclesView({
                     </div>
                   </div>
 
-                  {/* Status, Dealership, and Passenger Capacity */}
-                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                  {/* Status, Dealership, Passenger Capacity and User Impression (50%) */}
+                  <div className="flex items-center gap-1.5 flex-wrap text-xs">
                     <StatusBadge status={vehicle.status} size="sm" />
                     <span className="text-[11px] text-slate-500">
                       {vehicle.dealership || 'Sem concessionária'}
@@ -203,18 +206,26 @@ export function VehiclesView({
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                       {vehicle.familySpace.passengerCapacity || 5} passageiros
                     </span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                      scores.userImpressionRaw !== null
+                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-cyan-300 border border-blue-200/60 dark:border-blue-800/60'
+                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60'
+                    }`}>
+                      <Sparkles className="w-3 h-3 text-blue-600 dark:text-cyan-400" />
+                      <span>Impressão: {scores.userImpressionRaw !== null ? `${formatNumber(scores.userImpressionRaw, 1)}/10` : 'Pendente'} (50%)</span>
+                    </span>
                   </div>
 
                   {/* Eliminatory alert banner if eliminated or pending */}
-                  {elim.isEliminated ? (
+                  {elim.isPendingMeasurement ? (
+                    <div className="p-2.5 rounded-2xl bg-amber-500/12 dark:bg-amber-950/40 border border-amber-300/40 dark:border-amber-900/60 text-[11px] text-amber-900 dark:text-amber-200 flex items-start gap-1.5">
+                      <ClipboardCheck className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <span>Falta de medição ISOFIX (aspecto eliminatório: nota zero até medir)</span>
+                    </div>
+                  ) : elim.isEliminated ? (
                     <div className="p-2.5 rounded-2xl bg-rose-500/12 dark:bg-rose-950/40 border border-rose-300/40 dark:border-rose-900/60 text-[11px] text-rose-900 dark:text-rose-200 flex items-start gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
                       <span>{elim.reason}</span>
-                    </div>
-                  ) : elim.isPendingMeasurement ? (
-                    <div className="p-2.5 rounded-2xl bg-amber-500/12 dark:bg-amber-950/40 border border-amber-300/40 dark:border-amber-900/60 text-[11px] text-amber-900 dark:text-amber-200 flex items-start gap-1.5">
-                      <ClipboardCheck className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                      <span>Medição ISOFIX em branco — realizar na concessionária</span>
                     </div>
                   ) : null}
 

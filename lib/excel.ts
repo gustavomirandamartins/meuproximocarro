@@ -65,6 +65,11 @@ export const EXCEL_COLUMNS = [
   { header: 'Saída de Ar Traseira (Sim/Não)', key: 'comfort_rearAirVents', width: 20 },
   { header: 'CarPlay Sem Fio (Sim/Não)', key: 'comfort_carPlayWireless', width: 20 },
   { header: 'Teto Panorâmico (Sim/Não)', key: 'comfort_panoramicSunroof', width: 20 },
+
+  // 8. Avaliação do Usuário (Minha Impressão Geral - Peso 50%)
+  { header: 'Minha Impressão Geral (0 a 10 - Peso 50%)', key: 'user_impressionScore', width: 22 },
+  { header: 'Minha Impressão - Test-Drive Realizado (Sim/Não)', key: 'user_testDriveConducted', width: 24 },
+  { header: 'Minha Impressão - Anotações & Sensações ao Volante', key: 'user_notes', width: 36 },
 ];
 
 function boolToText(val: boolean | undefined | null): string {
@@ -151,6 +156,11 @@ export function vehiclesToExcelRows(vehicles: Vehicle[]) {
     'Saída de Ar Traseira (Sim/Não)': boolToText(v.comfortTech?.rearAirVents),
     'CarPlay Sem Fio (Sim/Não)': boolToText(v.comfortTech?.carPlayWireless),
     'Teto Panorâmico (Sim/Não)': boolToText(v.comfortTech?.panoramicSunroof),
+
+    // 8. Avaliação do Usuário (Minha Impressão Geral - Peso 50%)
+    'Minha Impressão Geral (0 a 10 - Peso 50%)': v.userImpression?.score !== null && v.userImpression?.score !== undefined ? v.userImpression.score : '',
+    'Minha Impressão - Test-Drive Realizado (Sim/Não)': boolToText(v.userImpression?.testDriveConducted),
+    'Minha Impressão - Anotações & Sensações ao Volante': v.userImpression?.notes || '',
   }));
 }
 
@@ -181,6 +191,10 @@ export function exportVehiclesToExcel(vehicles: Vehicle[], customFileName?: stri
     { 'GUIA DE PREENCHIMENTO': '3. TCO (TOTAL COST OF OWNERSHIP):' },
     { 'GUIA DE PREENCHIMENTO': '   - Simplificado para 3 anos na Bahia (Alíquota IPVA 2,5%).' },
     { 'GUIA DE PREENCHIMENTO': '   - Composto por: IPVA (3 anos) + Seguro (3 anos) + Revisões 3 Anos + Consumo 3 Anos.' },
+    { 'GUIA DE PREENCHIMENTO': '' },
+    { 'GUIA DE PREENCHIMENTO': '4. AVALIAÇÃO DO USUÁRIO (MINHA IMPRESSÃO GERAL - PESO 50%):' },
+    { 'GUIA DE PREENCHIMENTO': '   - A avaliação pessoal tem peso de 50% na nota final ponderada do veículo (os critérios técnicos compõem os outros 50%).' },
+    { 'GUIA DE PREENCHIMENTO': '   - Informe uma nota de 0 a 10 e suas observações subjetivas ao volante.' },
   ];
   const instructionSheet = XLSX.utils.json_to_sheet(instructionRows);
   instructionSheet['!cols'] = [{ wch: 80 }];
@@ -392,6 +406,18 @@ export async function parseVehiclesFromExcel(file: File): Promise<{
               rearAirVents: textToBool(row['Saída de Ar Traseira (Sim/Não)']),
               carPlayWireless: textToBool(row['CarPlay Sem Fio (Sim/Não)']),
               panoramicSunroof: textToBool(row['Teto Panorâmico (Sim/Não)']),
+            },
+
+            // 8. Avaliação do Usuário (Minha Impressão Geral - Peso 50%)
+            userImpression: {
+              score: (() => {
+                const rawUserScore = row['Minha Impressão Geral (0 a 10 - Peso 50%)'] ?? row['Minha Impressão Geral'] ?? row['Impressão Geral (0 a 10)'];
+                return (rawUserScore !== undefined && rawUserScore !== null && String(rawUserScore).trim() !== '')
+                  ? parseNum(rawUserScore)
+                  : null;
+              })(),
+              notes: String(row['Minha Impressão - Anotações & Sensações ao Volante'] || row['Anotações do Test-Drive'] || '').trim(),
+              testDriveConducted: textToBool(row['Minha Impressão - Test-Drive Realizado (Sim/Não)'] || row['Test-Drive Realizado']),
             },
 
             createdAt: new Date().toISOString(),

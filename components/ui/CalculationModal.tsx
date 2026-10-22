@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
-import { calculateTCO, calculateCategoryScores, formatMoney, formatNumber } from '@/lib/calculations';
-import { X, Calculator } from 'lucide-react';
+import { calculateTCO, calculateCategoryScores, checkElimination, formatMoney, formatNumber } from '@/lib/calculations';
+import { X, Calculator, AlertCircle } from 'lucide-react';
 
 interface CalculationModalProps {
   vehicle: Vehicle | null;
@@ -22,6 +22,7 @@ export function CalculationModal({
 
   const tco3 = calculateTCO(vehicle, preferences);
   const scores = calculateCategoryScores(vehicle, preferences);
+  const elim = checkElimination(vehicle, preferences);
   const usedCar = preferences.usedCar;
 
   return (
@@ -130,27 +131,129 @@ export function CalculationModal({
             </div>
           </section>
 
-          {/* 3. Ponderação da Nota Final */}
+          {/* 3. Critérios Técnicos Objetivos (Peso 50%) */}
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              3. Pontuação Geral e Categorias
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                3. Critérios Técnicos Objetivos (Peso: 50% na Nota Final)
+              </h3>
+              <span className="text-[11px] font-bold text-blue-600 dark:text-cyan-400">
+                Subtotal: {formatNumber(scores.technicalScore, 1)} / 100
+              </span>
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="p-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                <span className="text-[10px] text-slate-500 block">Espaço & ISOFIX</span>
+                <span className="text-[10px] text-slate-500 block">Espaço & ISOFIX ({preferences.weights.familySpace}%)</span>
                 <span className="font-bold text-sm text-slate-900 dark:text-white">{scores.familySpace}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                <span className="text-[10px] text-slate-500 block">TCO 3 Anos</span>
+                <span className="text-[10px] text-slate-500 block">TCO 3 Anos ({preferences.weights.tco}%)</span>
                 <span className="font-bold text-sm text-slate-900 dark:text-white">{scores.tco}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                <span className="text-[10px] text-slate-500 block">Segurança</span>
+                <span className="text-[10px] text-slate-500 block">Segurança ({preferences.weights.safety}%)</span>
                 <span className="font-bold text-sm text-slate-900 dark:text-white">{scores.safety}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                <span className="text-[10px] text-slate-500 block">Nota Final</span>
-                <span className="font-bold text-sm text-blue-600 dark:text-cyan-400">{scores.finalWeightedScore}</span>
+                <span className="text-[10px] text-slate-500 block">Motor & Efic. ({preferences.weights.powertrainEfficiency}%)</span>
+                <span className="font-bold text-sm text-slate-900 dark:text-white">{scores.powertrainEfficiency}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                <span className="text-[10px] text-slate-500 block">Conforto ({preferences.weights.comfort}%)</span>
+                <span className="font-bold text-sm text-slate-900 dark:text-white">{scores.comfort}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                <span className="text-[10px] text-slate-500 block">Garantia ({preferences.weights.warrantyResale}%)</span>
+                <span className="font-bold text-sm text-slate-900 dark:text-white">{scores.warrantyResale}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/5">
+                <span className="text-[10px] text-slate-500 block">Tecnologia ({preferences.weights.technology}%)</span>
+                <span className="font-bold text-sm text-slate-900 dark:text-white">{scores.technology}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <span className="text-[10px] text-blue-700 dark:text-blue-300 block font-semibold">Contribuição (50%)</span>
+                <span className="font-bold text-sm text-blue-700 dark:text-cyan-300">+{formatNumber(scores.technicalScore * 0.5, 1)} pts</span>
+              </div>
+            </div>
+          </section>
+
+          {/* 4. Avaliação do Usuário — Minha Impressão Geral (Peso 50%) */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                4. Avaliação do Usuário — Minha Impressão Geral (Peso: 50%)
+              </h3>
+              <span className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400">
+                {scores.userImpressionRaw !== null ? `${formatNumber(scores.userImpressionRaw, 1)} / 10` : 'Pendente'}
+              </span>
+            </div>
+
+            <div className="p-4 bg-white/60 dark:bg-white/5 rounded-2xl border border-white/50 dark:border-white/5 backdrop-blur-md space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-slate-900 dark:text-white block">
+                    Nota Pessoal: {scores.userImpressionRaw !== null ? `${formatNumber(scores.userImpressionRaw, 1)} / 10` : 'Não avaliado'}
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {scores.userImpressionRaw !== null
+                      ? `Equivale a ${formatNumber(scores.userImpressionScore!, 1)} / 100 pontos técnicos`
+                      : 'Aguardando registro presencial na concessionária ou formulário'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-500 block">Contribuição (50%):</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    {scores.userImpressionRaw !== null ? `+${formatNumber(scores.userImpressionRaw * 5, 1)} pts` : '+0,0 pts'}
+                  </span>
+                </div>
+              </div>
+
+              {vehicle.userImpression?.notes && (
+                <div className="pt-2 border-t border-slate-200/60 dark:border-white/10">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block mb-0.5">Minhas observações ao volante:</span>
+                  <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">
+                    &ldquo;{vehicle.userImpression.notes}&rdquo;
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* 5. Composição da Nota Final */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              5. Composição e Nota Final Ponderada
+            </h3>
+
+            {elim.isPendingMeasurement && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-bold block">Nota Final Zero — Medição ISOFIX Pendente</span>
+                  <p className="text-[11px] leading-relaxed opacity-90">
+                    A falta de medição do ISOFIX é aspecto eliminatório. A pontuação geral permanece em zero e será calculada automaticamente assim que a distância for inserida na concessionária.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 bg-slate-950 text-white rounded-2xl flex items-center justify-between shadow-md border border-white/10">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Fórmula Ponderada Oficial:</span>
+                <span className="text-xs font-medium text-slate-300 block">
+                  (Critérios Técnicos × 50%) + (Minha Impressão × 50%)
+                </span>
+                <span className="text-[11px] text-slate-400 block mt-0.5">
+                  ({formatNumber(scores.technicalScore, 1)} × 0,5) + ({scores.userImpressionRaw !== null ? formatNumber(scores.userImpressionScore!, 1) : '0'} × 0,5)
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-slate-400 block text-[11px]">Nota Final:</span>
+                <span className="text-2xl font-extrabold text-white tabular-nums">
+                  {formatNumber(scores.finalWeightedScore, 1)}
+                </span>
+                <span className="text-xs text-slate-400 font-semibold block leading-none">/ 100</span>
               </div>
             </div>
           </section>

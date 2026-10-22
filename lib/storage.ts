@@ -92,6 +92,15 @@ export function normalizeVehicle(raw: any): Vehicle {
       panoramicSunroof: !!raw.comfortTech?.panoramicSunroof,
     },
 
+    // 8. Avaliação do Usuário (Minha Impressão Geral - Peso 50%)
+    userImpression: {
+      score: raw.userImpression?.score !== undefined && raw.userImpression?.score !== null && !isNaN(Number(raw.userImpression.score))
+        ? Number(raw.userImpression.score)
+        : null,
+      notes: raw.userImpression?.notes || '',
+      testDriveConducted: !!raw.userImpression?.testDriveConducted,
+    },
+
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };

@@ -124,6 +124,13 @@ export interface Vehicle {
     panoramicSunroof: boolean; // Teto panorâmico
   };
 
+  // 8. Avaliação do Usuário (Minha Impressão Geral - Peso 50%)
+  userImpression?: {
+    score: number | null; // Nota de 0 a 10 (ex: 8.5) correspondendo a peso de 50%
+    notes?: string; // Comentários e percepções gerais ao volante
+    testDriveConducted?: boolean; // Se realizou test-drive presencial
+  };
+
   createdAt: string;
   updatedAt: string;
 }

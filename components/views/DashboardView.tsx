@@ -86,7 +86,7 @@ export function DashboardView({
         pendingItems.push({
           vehicle,
           issue: 'Medição presencial da fita métrica do ISOFIX pendente',
-          impact: `Exigido para entrar no ranking (espaço ≥ ${minIsofix} cm para 5 passageiros).`,
+          impact: `Aspecto eliminatório: nota zero até medir (requer espaço ≥ ${minIsofix} cm para 5 passageiros).`,
         });
       } else if (isofix < minIsofix) {
         pendingItems.push({
@@ -311,10 +311,13 @@ export function DashboardView({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1 border-t border-white/40 dark:border-white/5">
+                      <div className="flex items-center gap-2 pt-1 border-t border-white/40 dark:border-white/5 flex-wrap">
                         <StatusBadge status={vehicle.status} size="sm" />
                         <span className="text-[11px] text-slate-500">
                           {vehicle.dealership || 'Sem concessionária'}
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-cyan-300 border border-blue-200/50 dark:border-blue-900/40">
+                          Impressão: {scores.userImpressionRaw !== null ? `${formatNumber(scores.userImpressionRaw, 1)}/10` : 'Pendente'} (50%)
                         </span>
                       </div>
 

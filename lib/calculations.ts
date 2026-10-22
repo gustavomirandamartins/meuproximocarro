@@ -177,7 +177,14 @@ export function checkElimination(
   } else if (passengers === 5) {
     if (isofixDist === null || isofixDist === undefined || isNaN(isofixDist) || isofixDist === 0) {
       isPendingMeasurement = true;
-      passedRequirements.push(`Aguardando medição presencial do ISOFIX na concessionária (requer ≥ ${formatNumber(minIsofix, 2)} cm)`);
+      isIsofixDisqualified = true;
+      const msg = `Medição de ISOFIX pendente (aspecto eliminatório — nota zero até medir)`;
+      failedRequirements.push(msg);
+      disqualifications.push({
+        type: 'ISOFIX',
+        title: 'Medição ISOFIX pendente (eliminatório)',
+        description: `A falta de medição ISOFIX é aspecto eliminatório. A nota final permanece em zero até que a medição presencial seja realizada (requer ≥ ${formatNumber(minIsofix, 2)} cm).`,
+      });
     } else if (isofixDist < minIsofix) {
       isIsofixDisqualified = true;
       const msg = `Distância do ISOFIX de ${formatNumber(isofixDist, 2)} cm abaixo de ${formatNumber(minIsofix, 2)} cm`;
@@ -460,7 +467,11 @@ export interface CategoryScores {
   comfort: number; // 0 - 100
   warrantyResale: number; // 0 - 100
   technology: number; // 0 - 100
-  finalWeightedScore: number;
+  technicalScore: number; // 0 - 100 (Critérios Técnicos Objetivos, peso de 50%)
+  userImpressionScore: number | null; // 0 - 100 (Minha Impressão Geral normalizada, peso de 50%)
+  userImpressionRaw: number | null; // 0 - 10 (Nota informada pelo usuário)
+  isPendingImpression: boolean; // Se o usuário ainda não avaliou sua impressão geral
+  finalWeightedScore: number; // Nota Final Ponderada (50% Técnico + 50% Impressão do Usuário)
 }
 
 export function calculateCategoryScores(
@@ -468,19 +479,30 @@ export function calculateCategoryScores(
   settings: UserPreferences
 ): CategoryScores {
   // 1. ESPAÇO & ISOFIX
-  const isofixDist = vehicle.familySpace.isofixDistanceCm;
-  const passengers = vehicle.familySpace.passengerCapacity || 5;
-  let familySpaceScore = 50;
+  const isofixDist = vehicle.familySpace?.isofixDistanceCm;
+  const passengers = vehicle.familySpace?.passengerCapacity || 5;
+
+  const hasMeasuredIsofix =
+    isofixDist !== null &&
+    isofixDist !== undefined &&
+    !isNaN(isofixDist) &&
+    isofixDist > 0;
+
+  // Aspecto eliminatório: em veículos de até 5 passageiros, a falta de medição ISOFIX
+  // torna a nota final zero (passa a ser calculada assim que se medir)
+  const isPendingIsofixMeasurement = passengers <= 5 && !hasMeasuredIsofix;
+
+  let familySpaceScore = 0;
 
   if (passengers > 5) {
     familySpaceScore = 95;
-  } else if (isofixDist !== null && isofixDist !== undefined && isofixDist > 0) {
+  } else if (hasMeasuredIsofix) {
     if (isofixDist >= 50) familySpaceScore = 100;
     else if (isofixDist >= 48) familySpaceScore = 90;
     else if (isofixDist >= 45) familySpaceScore = 75;
     else familySpaceScore = 30;
   } else {
-    familySpaceScore = 60; // Pendente de medição
+    familySpaceScore = 0; // Pendente de medição
   }
 
   // 2. TCO (3 ANOS)
@@ -490,42 +512,43 @@ export function calculateCategoryScores(
 
   // 3. SEGURANÇA
   let safetyScore = 50;
-  if (vehicle.safety.airbagsCount >= 7) safetyScore += 20;
-  else if (vehicle.safety.airbagsCount >= 6) safetyScore += 15;
-  if (vehicle.safety.hasAdas) safetyScore += 15;
-  if (vehicle.safety.hasBlindSpotAlert) safetyScore += 10;
-  if (vehicle.safety.hasCamera360) safetyScore += 5;
+  if ((vehicle.safety?.airbagsCount ?? 0) >= 7) safetyScore += 20;
+  else if ((vehicle.safety?.airbagsCount ?? 0) >= 6) safetyScore += 15;
+  if (vehicle.safety?.hasAdas) safetyScore += 15;
+  if (vehicle.safety?.hasBlindSpotAlert) safetyScore += 10;
+  if (vehicle.safety?.hasCamera360) safetyScore += 5;
   safetyScore = Math.min(100, safetyScore);
 
   // 4. MOTORIZAÇÃO & EFICIÊNCIA
   let powScore = 50;
-  if (vehicle.powertrainSpec.totalPowerHp >= 200) powScore += 20;
-  else if (vehicle.powertrainSpec.totalPowerHp >= 150) powScore += 10;
-  if (vehicle.powertrainSpec.zeroToHundredSeconds > 0 && vehicle.powertrainSpec.zeroToHundredSeconds <= 8.5) powScore += 15;
+  if ((vehicle.powertrainSpec?.totalPowerHp ?? 0) >= 200) powScore += 20;
+  else if ((vehicle.powertrainSpec?.totalPowerHp ?? 0) >= 150) powScore += 10;
+  if ((vehicle.powertrainSpec?.zeroToHundredSeconds ?? 0) > 0 && (vehicle.powertrainSpec?.zeroToHundredSeconds ?? 0) <= 8.5) powScore += 15;
   if (vehicle.powertrain === 'PHEV' || vehicle.powertrain === 'HEV') powScore += 15;
   powScore = Math.min(100, powScore);
 
   // 5. CONFORTO
   let comfortScore = 40;
-  if (vehicle.comfortTech.electricSeats) comfortScore += 15;
-  if (vehicle.comfortTech.rearAirVents) comfortScore += 15;
-  if (vehicle.comfortTech.panoramicSunroof) comfortScore += 15;
-  if (vehicle.trunk.electricTailgate) comfortScore += 15;
+  if (vehicle.comfortTech?.electricSeats) comfortScore += 15;
+  if (vehicle.comfortTech?.rearAirVents) comfortScore += 15;
+  if (vehicle.comfortTech?.panoramicSunroof) comfortScore += 15;
+  if (vehicle.trunk?.electricTailgate) comfortScore += 15;
   comfortScore = Math.min(100, comfortScore);
 
   // 6. GARANTIA & CUSTOS
   let warrantyScore = 50;
-  if (vehicle.warrantyCosts.generalWarrantyYears >= 5) warrantyScore += 25;
-  else if (vehicle.warrantyCosts.generalWarrantyYears >= 3) warrantyScore += 15;
-  if (vehicle.warrantyCosts.batteryWarrantyYears >= 8) warrantyScore += 25;
+  if ((vehicle.warrantyCosts?.generalWarrantyYears ?? 0) >= 5) warrantyScore += 25;
+  else if ((vehicle.warrantyCosts?.generalWarrantyYears ?? 0) >= 3) warrantyScore += 15;
+  if ((vehicle.warrantyCosts?.batteryWarrantyYears ?? 0) >= 8) warrantyScore += 25;
   warrantyScore = Math.min(100, warrantyScore);
 
   // 7. TECNOLOGIA
   let techScore = 50;
-  if (vehicle.comfortTech.carPlayWireless) techScore += 25;
-  if (vehicle.safety.hasCamera360) techScore += 25;
+  if (vehicle.comfortTech?.carPlayWireless) techScore += 25;
+  if (vehicle.safety?.hasCamera360) techScore += 25;
   techScore = Math.min(100, techScore);
 
+  // Cálculo da Pontuação Técnica Ponderada (Base 0 - 100)
   const w = settings.weights;
   const totalWeight =
     w.familySpace +
@@ -545,7 +568,49 @@ export function calculateCategoryScores(
     warrantyScore * w.warrantyResale +
     techScore * w.technology;
 
-  const finalWeightedScore = Math.round(((weightedSum / totalWeight) + Number.EPSILON) * 10) / 10;
+  const technicalScore = Math.round(((weightedSum / totalWeight) + Number.EPSILON) * 10) / 10;
+
+  // 8. AVALIAÇÃO DO USUÁRIO — MINHA IMPRESSÃO GERAL (PESO DE 50%)
+  const hasUserImpression =
+    vehicle.userImpression?.score !== null &&
+    vehicle.userImpression?.score !== undefined &&
+    !isNaN(Number(vehicle.userImpression.score));
+
+  const userImpressionRaw = hasUserImpression ? Number(vehicle.userImpression!.score) : null;
+  // Converte escala 0-10 para 0-100 se necessário
+  const userImpressionScore = userImpressionRaw !== null
+    ? (userImpressionRaw <= 10 ? Math.round(userImpressionRaw * 10 * 10) / 10 : userImpressionRaw)
+    : null;
+  const isPendingImpression = !hasUserImpression;
+
+  // Aspecto eliminatório: se a medição do ISOFIX não foi realizada, a nota final é zero.
+  // Passa a ser calculada assim que se medir.
+  if (isPendingIsofixMeasurement) {
+    return {
+      familySpace: 0,
+      tco: tcoScore,
+      safety: safetyScore,
+      powertrainEfficiency: powScore,
+      comfort: comfortScore,
+      warrantyResale: warrantyScore,
+      technology: techScore,
+      technicalScore,
+      userImpressionScore,
+      userImpressionRaw,
+      isPendingImpression,
+      finalWeightedScore: 0,
+    };
+  }
+
+  // FÓRMULA FINAL: 50% Critérios Técnicos Objetivos + 50% Minha Impressão Geral
+  let finalWeightedScore = 0;
+  if (hasUserImpression && userImpressionScore !== null) {
+    finalWeightedScore = Math.round(((technicalScore * 0.50) + (userImpressionScore * 0.50) + Number.EPSILON) * 10) / 10;
+  } else {
+    // Caso ainda não tenha sido avaliado pessoalmente pelo usuário,
+    // a nota é calculada provisoriamente sobre os 50% dos critérios técnicos objetivos
+    finalWeightedScore = Math.round(((technicalScore * 0.50) + Number.EPSILON) * 10) / 10;
+  }
 
   return {
     familySpace: familySpaceScore,
@@ -555,6 +620,10 @@ export function calculateCategoryScores(
     comfort: comfortScore,
     warrantyResale: warrantyScore,
     technology: techScore,
+    technicalScore,
+    userImpressionScore,
+    userImpressionRaw,
+    isPendingImpression,
     finalWeightedScore,
   };
 }
@@ -607,23 +676,48 @@ export function generatePositionExplanation(
     weaknesses.push(`Distância ISOFIX de ${formatNumber(vehicle.familySpace.isofixDistanceCm || 0, 2)} cm abaixo de ${formatNumber(settings.isofixMinDistanceCm ?? 45, 2)} cm (desclassificatório)`);
   }
 
-  if (vehicle.familySpace.isofixDistanceCm === null) {
-    weaknesses.push('Medição presencial da fita métrica pendente no showroom');
+  if (elim.isPendingMeasurement || vehicle.familySpace.isofixDistanceCm === null) {
+    weaknesses.push('Medição presencial da fita métrica do ISOFIX pendente (critério eliminatório: nota zero até medir)');
   }
 
-  if (vehicle.warrantyCosts.generalWarrantyYears < 5) {
+  if (vehicle.warrantyCosts?.generalWarrantyYears && vehicle.warrantyCosts.generalWarrantyYears < 5) {
     weaknesses.push(`Garantia geral de ${vehicle.warrantyCosts.generalWarrantyYears} anos`);
   }
 
-  const headline = elim.isEliminated
+  // Avaliação do Usuário (Minha Impressão Geral - Peso 50%)
+  if (scores.userImpressionRaw !== null) {
+    if (scores.userImpressionRaw >= 8.5) {
+      strengths.push(`Alta avaliação do usuário: nota ${formatNumber(scores.userImpressionRaw, 1)} / 10 em Minha Impressão Geral (peso 50%)`);
+    } else if (scores.userImpressionRaw <= 6.5) {
+      weaknesses.push(`Avaliação subjetiva mais contida: nota ${formatNumber(scores.userImpressionRaw, 1)} / 10 em Minha Impressão Geral (peso 50%)`);
+    } else {
+      strengths.push(`Minha Impressão Geral avaliada: nota ${formatNumber(scores.userImpressionRaw, 1)} / 10 (peso 50%)`);
+    }
+  } else {
+    weaknesses.push('Minha Impressão Geral ainda não preenchida pelo usuário (peso de 50% na nota final)');
+  }
+
+  const headline = elim.isPendingMeasurement
+    ? 'Nota Zero — Medição ISOFIX pendente (aspecto eliminatório)'
+    : elim.isEliminated
     ? `Desclassificado (${elim.reason})`
     : `Pontuação ponderada de ${formatNumber(scores.finalWeightedScore, 1)} / 100`;
 
+  let comparativeNote = '';
+  if (elim.isPendingMeasurement) {
+    comparativeNote = 'A nota final permanece em zero devido à falta de medição do ISOFIX (aspecto eliminatório). A nota será calculada assim que a medição for registrada na concessionária.';
+  } else if (elim.isEliminated) {
+    comparativeNote = 'Desclassificado por violar requisitos obrigatórios.';
+  } else {
+    const impressionText = scores.userImpressionRaw !== null
+      ? `Impressão Geral: ${formatNumber(scores.userImpressionRaw, 1)}/10 (50%) + Critérios Técnicos: ${formatNumber(scores.technicalScore, 1)}/100 (50%).`
+      : `Critérios Técnicos: ${formatNumber(scores.technicalScore, 1)}/100 (50%) + Impressão Geral pendente.`;
+    comparativeNote = `${impressionText} TCO 3 anos BA 2,5% e dimensões vs usado.`;
+  }
+
   return {
     headline,
-    comparativeNote: elim.isEliminated
-      ? `Desclassificado por violar requisitos obrigatórios.`
-      : `Avaliado considerando TCO de 3 anos (IPVA BA 2,5%), dimensões vs usado e espaço familiar.`,
+    comparativeNote,
     strengths: strengths.length > 0 ? strengths : ['Veículo em avaliação'],
     weaknesses: weaknesses.length > 0 ? weaknesses : ['Nenhum ponto impeditivo detectado'],
   };

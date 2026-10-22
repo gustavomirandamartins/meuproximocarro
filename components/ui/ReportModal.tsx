@@ -42,7 +42,12 @@ export function ReportModal({
 
     finalists.forEach((f, idx) => {
       lines.push(`${idx + 1}. ${f.vehicle.brand} ${f.vehicle.model} ${f.vehicle.version}`);
-      lines.push(`   • Nota Ponderada: ${f.scores.finalWeightedScore.toFixed(1)}/100`);
+      lines.push(`   • Nota Ponderada Geral: ${f.scores.finalWeightedScore.toFixed(1)}/100`);
+      lines.push(`   • Minha Impressão Geral (Peso 50%): ${f.scores.userImpressionRaw !== null ? `${f.scores.userImpressionRaw.toFixed(1)}/10 (+${(f.scores.userImpressionRaw * 5).toFixed(1)} pts)` : 'Pendente'}`);
+      lines.push(`   • Critérios Técnicos Objetivos (Peso 50%): ${f.scores.technicalScore.toFixed(1)}/100 (+${(f.scores.technicalScore * 0.5).toFixed(1)} pts)`);
+      if (f.vehicle.userImpression?.notes) {
+        lines.push(`   • Anotações Pessoais: "${f.vehicle.userImpression.notes}"`);
+      }
       lines.push(`   • Distância ISOFIX: ${f.vehicle.familySpace.isofixDistanceCm} cm (Medido)`);
       lines.push(`   • Preço da Loja: R$ ${formatMoney(f.vehicle.financial.storePrice)}`);
       lines.push(`   • TCO 3 Anos Estimado: R$ ${formatMoney(f.tco.totalTCO)} (R$ ${formatMoney(f.tco.monthlyTCO)}/mês)`);
@@ -188,6 +193,23 @@ export function ReportModal({
                       R$ {formatMoney(tco.monthlyTCO)} / mês
                     </span>
                   </div>
+                </div>
+
+                {/* 50% Technical vs 50% User Impression Breakdown Banner */}
+                <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 rounded-2xl space-y-1 text-xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="font-bold text-blue-900 dark:text-cyan-300">
+                      Composição da Nota: 50% Critérios Técnicos + 50% Minha Impressão
+                    </span>
+                    <span className="font-semibold text-blue-700 dark:text-cyan-300">
+                      Técnico: {scores.technicalScore.toFixed(1)}/100 · Impressão: {scores.userImpressionRaw !== null ? `${scores.userImpressionRaw.toFixed(1)}/10` : 'Pendente'}
+                    </span>
+                  </div>
+                  {vehicle.userImpression?.notes && (
+                    <p className="text-[11px] text-slate-700 dark:text-slate-300 italic pt-1 border-t border-blue-200/50 dark:border-blue-900/30">
+                      &ldquo;{vehicle.userImpression.notes}&rdquo;
+                    </p>
+                  )}
                 </div>
 
                 {/* Strengths and Weaknesses */}

@@ -157,7 +157,7 @@ export function RankingView({
             Ranking Ponderado
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-            Apenas veículos com ISOFIX validado (≥ {preferences.isofixMinDistanceCm ?? 45} cm) ou capacidade para mais de 5 passageiros.
+            Composição oficial: 50% Critérios Técnicos Objetivos + 50% Minha Impressão Geral. Medição ISOFIX eliminatória (nota zero até medir).
           </p>
         </div>
 
@@ -199,11 +199,16 @@ export function RankingView({
       {/* Interactive Live Weight & Criteria Simulator */}
       <div className="p-4 sm:p-5 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/50 dark:border-white/10 space-y-3 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-blue-600 dark:text-cyan-400" />
-            <span className="font-bold text-slate-900 dark:text-white">
-              Simular Prioridades:
-            </span>
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600 dark:text-cyan-400" />
+              <span className="font-bold text-slate-900 dark:text-white">
+                Simular Pesos dos Critérios Técnicos:
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Os critérios abaixo compõem os 50% técnicos da nota final. Os outros 50% vêm da sua avaliação em &ldquo;Minha Impressão Geral&rdquo;.
+            </p>
           </div>
           <button
             onClick={onNavigateToSettings}
@@ -497,7 +502,7 @@ export function RankingView({
 
             {unmeasuredCount > 0 && (
               <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                {unmeasuredCount} {unmeasuredCount === 1 ? 'veículo fora do ranking' : 'veículos fora do ranking'} (aguarda medição de ISOFIX)
+                {unmeasuredCount} {unmeasuredCount === 1 ? 'veículo fora do ranking' : 'veículos fora do ranking'} (nota zero até medição do ISOFIX)
               </span>
             )}
           </div>
@@ -639,6 +644,9 @@ export function RankingView({
                                 </>
                               )}
                             </div>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                              Técnico: {formatNumber(scores.technicalScore, 1)} (50%) · Impressão: {scores.userImpressionRaw !== null ? `${formatNumber(scores.userImpressionRaw, 1)}/10` : 'Pendente'} (50%)
+                            </span>
                             {isDisqualified && (
                               <span className="text-[10px] text-slate-400 block">Nota: {scores.finalWeightedScore.toFixed(1)}</span>
                             )}
@@ -801,17 +809,41 @@ export function RankingView({
                                 </span>
                               </div>
                               <div>
-                                <span className="text-slate-500 block text-[10px]">Nota Espaço Familiar:</span>
+                                <span className="text-slate-500 block text-[10px]">Critérios Técnicos (50%):</span>
                                 <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                                  {scores.familySpace} / 100
+                                  {formatNumber(scores.technicalScore, 1)} / 100
                                 </span>
                               </div>
                               <div>
-                                <span className="text-slate-500 block text-[10px]">Nota TCO & Custos:</span>
-                                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                                  {scores.tco} / 100
+                                <span className="text-slate-500 block text-[10px]">Minha Impressão (50%):</span>
+                                <span className="font-semibold text-cyan-600 dark:text-cyan-400 tabular-nums">
+                                  {scores.userImpressionRaw !== null ? `${formatNumber(scores.userImpressionRaw, 1)} / 10` : 'Pendente'}
                                 </span>
                               </div>
+                            </div>
+
+                            {/* Minha Impressão Geral & Anotações do Test-Drive */}
+                            <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/50 space-y-1.5 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-blue-900 dark:text-cyan-300 flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Minha Impressão Geral (Peso de 50%)</span>
+                                </span>
+                                <span className="font-bold text-blue-700 dark:text-cyan-300">
+                                  {scores.userImpressionRaw !== null
+                                    ? `Nota ${formatNumber(scores.userImpressionRaw, 1)}/10 (+${formatNumber(scores.userImpressionRaw * 5, 1)} pts)`
+                                    : 'Aguardando avaliação'}
+                                </span>
+                              </div>
+                              {vehicle.userImpression?.notes ? (
+                                <p className="text-slate-700 dark:text-slate-300 italic text-[11px] leading-relaxed">
+                                  &ldquo;{vehicle.userImpression.notes}&rdquo;
+                                </p>
+                              ) : (
+                                <p className="text-slate-500 text-[11px]">
+                                  Nenhuma anotação subjetiva registrada. Clique em &ldquo;Editar&rdquo; ou vá em &ldquo;Testar&rdquo; para atribuir sua impressão.
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}
