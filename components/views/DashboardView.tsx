@@ -24,6 +24,7 @@ import {
   Car,
   Plus,
   ArrowRight,
+  Archive,
 } from 'lucide-react';
 import { ActiveTab } from '../navigation/TopBar';
 
@@ -74,10 +75,13 @@ export function DashboardView({
           )[0]
         : null);
 
-  // Decision Pending Items
+  // Decision Pending Items (apenas veículos ativos)
   const pendingItems: { vehicle: Vehicle; issue: string; impact: string }[] = [];
   const minIsofix = preferences?.isofixMinDistanceCm ?? 45;
+  const archivedVehiclesCount = vehicles.filter((v) => !!v.isArchived).length;
+
   vehicles.forEach((vehicle) => {
+    if (vehicle.isArchived) return; // Veículos arquivados ficam escondidos da decisão ativa
     const isofix = vehicle.familySpace?.isofixDistanceCm;
     const isUnmeasured = isofix === null || isofix === undefined || isNaN(isofix) || isofix === 0;
     const is5SeatsOrLess = (vehicle.familySpace?.passengerCapacity ?? 5) <= 5;
@@ -113,6 +117,18 @@ export function DashboardView({
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
             Como está minha decisão?
           </h1>
+          {archivedVehiclesCount > 0 && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+              <span>Considerando apenas veículos ativos.</span>
+              <button
+                onClick={() => onNavigate('vehicles')}
+                className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 font-semibold hover:underline cursor-pointer"
+              >
+                <Archive className="w-3 h-3" />
+                <span>{archivedVehiclesCount} veículo{archivedVehiclesCount > 1 ? 's' : ''} arquivado{archivedVehiclesCount > 1 ? 's' : ''}</span>
+              </button>
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">

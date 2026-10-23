@@ -38,6 +38,9 @@ export default function Home() {
     scenarios,
     upsertVehicle,
     deleteVehicle,
+    archiveVehicle,
+    unarchiveVehicle,
+    toggleArchiveVehicle,
     savePreferences,
     applyScenario,
     resetToSeedData,
@@ -219,6 +222,16 @@ export default function Home() {
             preferences={preferences}
             onEditVehicle={handleOpenEditVehicle}
             onDeleteVehicle={deleteVehicle}
+            onToggleArchiveVehicle={(id) => {
+              const target = vehicles.find((v) => v.id === id);
+              toggleArchiveVehicle(id);
+              if (target?.isArchived) {
+                setToastMessage(`Veículo "${target.brand} ${target.model}" reativado (desarquivado com sucesso)!`);
+              } else if (target) {
+                setToastMessage(`Veículo "${target.brand} ${target.model}" arquivado. Ficará escondido dos rankings e comparativos.`);
+              }
+              setTimeout(() => setToastMessage(null), 4000);
+            }}
             onNewVehicle={handleOpenNewVehicle}
             onNavigateToDealership={handleOpenDealershipTest}
             onNavigateToCompare={() => setActiveTab('compare')}

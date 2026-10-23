@@ -15,6 +15,8 @@ import {
   Scale,
   Car,
   Sparkles,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 
 interface VehiclesViewProps {
@@ -22,6 +24,7 @@ interface VehiclesViewProps {
   preferences: UserPreferences;
   onEditVehicle: (vehicle: Vehicle) => void;
   onDeleteVehicle: (id: string) => void;
+  onToggleArchiveVehicle?: (id: string) => void;
   onNewVehicle: () => void;
   onNavigateToDealership: (vehicle: Vehicle) => void;
   onNavigateToCompare: () => void;
@@ -32,19 +35,30 @@ export function VehiclesView({
   preferences,
   onEditVehicle,
   onDeleteVehicle,
+  onToggleArchiveVehicle,
   onNewVehicle,
   onNavigateToDealership,
   onNavigateToCompare,
 }: VehiclesViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusScope, setStatusScope] = useState<'active' | 'archived' | 'all'>('active');
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedCalcVehicle, setSelectedCalcVehicle] = useState<Vehicle | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const usedCar = preferences.usedCar;
 
+  const activeCount = vehicles.filter((v) => !v.isArchived).length;
+  const archivedCount = vehicles.filter((v) => !!v.isArchived).length;
+  const totalCount = vehicles.length;
+
   // Filter & Search logic
   const filteredVehicles = vehicles.filter((v) => {
+    // 1. Status Scope (Ativos vs Arquivados vs Todos)
+    if (statusScope === 'active' && v.isArchived) return false;
+    if (statusScope === 'archived' && !v.isArchived) return false;
+
+    // 2. Search query
     const matchesSearch =
       v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       v.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -53,6 +67,7 @@ export function VehiclesView({
 
     if (!matchesSearch) return false;
 
+    // 3. Technical filter
     const elim = checkElimination(v, preferences);
 
     if (filterType === 'viable') return !elim.isEliminated;
@@ -87,6 +102,75 @@ export function VehiclesView({
         </button>
       </div>
 
+      {/* Status Scope Selector: Ativos / Arquivados / Todos */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-200/50 dark:bg-slate-900/60 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl">
+          <button
+            onClick={() => setStatusScope('active')}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 min-h-[34px] ${
+              statusScope === 'active'
+                ? 'bg-white dark:bg-white/15 text-slate-950 dark:text-white shadow-xs border border-white/80 dark:border-white/20'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <span>Ativos</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-cyan-300 font-bold">
+              {activeCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusScope('archived')}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 min-h-[34px] ${
+              statusScope === 'archived'
+                ? 'bg-amber-500 text-slate-950 shadow-xs border border-amber-400 font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            <span>Arquivados</span>
+            {archivedCount > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                statusScope === 'archived'
+                  ? 'bg-amber-900/20 text-slate-950'
+                  : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+              }`}>
+                {archivedCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setStatusScope('all')}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 min-h-[34px] ${
+              statusScope === 'all'
+                ? 'bg-white dark:bg-white/15 text-slate-950 dark:text-white shadow-xs border border-white/80 dark:border-white/20'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <span>Todos</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
+              {totalCount}
+            </span>
+          </button>
+        </div>
+
+        {archivedCount > 0 && statusScope === 'active' && (
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <Archive className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span>
+              {archivedCount} veículo{archivedCount > 1 ? 's' : ''} escondido{archivedCount > 1 ? 's' : ''} em <strong>Arquivados</strong>
+            </span>
+            <button
+              onClick={() => setStatusScope('archived')}
+              className="text-blue-600 dark:text-cyan-400 hover:underline font-semibold cursor-pointer"
+            >
+              Ver arquivados
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Search and Filter bar */}
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
@@ -103,7 +187,7 @@ export function VehiclesView({
         {/* Filter Segmented Control */}
         <div className="flex items-center gap-1 p-1 bg-slate-200/40 dark:bg-slate-900/50 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-2xl overflow-x-auto">
           {[
-            { id: 'all', label: `Todos (${vehicles.length})` },
+            { id: 'all', label: `Todos (${filteredVehicles.length})` },
             { id: 'viable', label: 'Viáveis' },
             { id: 'eliminated', label: 'Eliminados' },
             { id: 'phev', label: 'PHEV' },
@@ -128,26 +212,48 @@ export function VehiclesView({
       {/* Vehicle Grid */}
       {filteredVehicles.length === 0 ? (
         <div className="p-12 text-center rounded-3xl border border-dashed border-white/50 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl space-y-3">
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-            Nenhum veículo encontrado com os filtros selecionados.
-          </p>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setFilterType('all');
-              }}
-              className="px-3.5 py-1.5 text-xs font-medium rounded-xl border border-white/50 dark:border-white/10 bg-white/70 dark:bg-white/10 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-white/20 cursor-pointer"
-            >
-              Limpar Filtros
-            </button>
-            <button
-              onClick={onNewVehicle}
-              className="px-3.5 py-1.5 text-xs font-medium rounded-xl bg-slate-900/90 text-white dark:bg-white/90 dark:text-slate-900 cursor-pointer shadow-sm"
-            >
-              Cadastrar Veículo
-            </button>
-          </div>
+          {statusScope === 'archived' ? (
+            <>
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                <Archive className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Nenhum veículo arquivado no momento.
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                A função &ldquo;Arquivar&rdquo; permite guardar veículos com todas as suas informações preenchidas, mantendo-os escondidos dos rankings e comparativos sem precisar excluí-los.
+              </p>
+              <button
+                onClick={() => setStatusScope('active')}
+                className="mt-2 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 cursor-pointer shadow-sm hover:opacity-90"
+              >
+                Ver Veículos Ativos ({activeCount})
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                Nenhum veículo encontrado com os filtros selecionados.
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterType('all');
+                  }}
+                  className="px-3.5 py-1.5 text-xs font-medium rounded-xl border border-white/50 dark:border-white/10 bg-white/70 dark:bg-white/10 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-white/20 cursor-pointer"
+                >
+                  Limpar Filtros
+                </button>
+                <button
+                  onClick={onNewVehicle}
+                  className="px-3.5 py-1.5 text-xs font-medium rounded-xl bg-slate-900/90 text-white dark:bg-white/90 dark:text-slate-900 cursor-pointer shadow-sm"
+                >
+                  Cadastrar Veículo
+                </button>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -161,12 +267,34 @@ export function VehiclesView({
               <div
                 key={vehicle.id}
                 className={`rounded-3xl border backdrop-blur-2xl backdrop-saturate-180 p-5 transition-all flex flex-col justify-between group ${
-                  elim.isEliminated
+                  vehicle.isArchived
+                    ? 'border-amber-300/60 dark:border-amber-800/60 bg-amber-50/20 dark:bg-amber-950/20 opacity-85 hover:opacity-100 shadow-xs'
+                    : elim.isEliminated
                     ? 'border-rose-300/60 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/25'
                     : 'border-white/60 dark:border-white/10 bg-white/75 dark:bg-slate-900/75 hover:border-white/90 dark:hover:border-white/20 shadow-sm'
                 }`}
               >
                 <div className="space-y-3">
+                  {/* Archived Top Notice if archived */}
+                  {vehicle.isArchived && (
+                    <div className="p-2 rounded-xl bg-amber-500/15 dark:bg-amber-950/50 border border-amber-300/40 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Archive className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span>Arquivado (Escondido dos rankings)</span>
+                      </span>
+                      {onToggleArchiveVehicle && (
+                        <button
+                          onClick={() => onToggleArchiveVehicle(vehicle.id)}
+                          className="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 dark:text-amber-100 font-bold text-[10px] cursor-pointer flex items-center gap-1"
+                          title="Reativar e desarquivar veículo"
+                        >
+                          <ArchiveRestore className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <span>Desarquivar</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Top line: Brand/Model + Score */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -336,6 +464,24 @@ export function VehiclesView({
                         title="Excluir veículo"
                       >
                         <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {onToggleArchiveVehicle && (
+                      <button
+                        onClick={() => onToggleArchiveVehicle(vehicle.id)}
+                        className={`p-2 rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
+                          vehicle.isArchived
+                            ? 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-300/40 dark:border-emerald-800/40'
+                            : 'text-slate-400 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 hover:bg-amber-500/10'
+                        }`}
+                        title={vehicle.isArchived ? "Desarquivar veículo (reativar nos rankings)" : "Arquivar veículo (manter escondido sem excluir)"}
+                      >
+                        {vehicle.isArchived ? (
+                          <ArchiveRestore className="w-4 h-4" />
+                        ) : (
+                          <Archive className="w-4 h-4" />
+                        )}
                       </button>
                     )}
                   </div>

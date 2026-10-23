@@ -23,8 +23,11 @@ export function TcoCostsView({
 }: TcoCostsViewProps) {
   const [selectedCalcVehicle, setSelectedCalcVehicle] = useState<Vehicle | null>(null);
 
+  const activeVehicles = vehicles.filter((v) => !v.isArchived);
+  const displayList = activeVehicles.length > 0 ? activeVehicles : vehicles;
+
   // Ranked by simplified 3-year TCO ascending
-  const calculatedList = vehicles
+  const calculatedList = displayList
     .map((v) => {
       const tco = calculateTCO(v, preferences);
       const elim = checkElimination(v, preferences);

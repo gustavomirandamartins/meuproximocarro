@@ -19,9 +19,12 @@ export function ComparisonView({
   onEditVehicle,
   onNewVehicle,
 }: ComparisonViewProps) {
+  const activeVehicles = vehicles.filter((v) => !v.isArchived);
+  const selectableVehicles = activeVehicles.length > 0 ? activeVehicles : vehicles;
+
   const [selectedIds, setSelectedIds] = useState<string[]>(() => {
-    const viable = vehicles.filter((v) => !checkElimination(v, preferences).isEliminated);
-    const initial = viable.length >= 2 ? viable : vehicles;
+    const viable = selectableVehicles.filter((v) => !checkElimination(v, preferences).isEliminated);
+    const initial = viable.length >= 2 ? viable : selectableVehicles;
     return initial.slice(0, 3).map((v) => v.id);
   });
 
@@ -139,7 +142,7 @@ export function ComparisonView({
           Selecionar veículos para o comparativo ({selectedIds.length}/5):
         </span>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {vehicles.map((v) => {
+          {selectableVehicles.map((v) => {
             const isSelected = selectedIds.includes(v.id);
             return (
               <button

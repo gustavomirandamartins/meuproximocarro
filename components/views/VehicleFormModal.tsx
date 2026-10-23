@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Vehicle, PowertrainType, VehicleStatus, UserPreferences, PaymentCondition } from '@/types/vehicle';
 import { formatMoney, formatNumber, calculatePaymentOption, compareDimensions, checkElimination } from '@/lib/calculations';
 import { PtBrNumberInput } from '@/components/ui/PtBrNumberInput';
-import { X, ArrowRight, ArrowLeft, Check, Plus, Trash2, Calculator, Info, AlertTriangle, Sparkles, Star, RotateCcw } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Check, Plus, Trash2, Calculator, Info, AlertTriangle, Sparkles, Star, RotateCcw, Archive, ArchiveRestore } from 'lucide-react';
 import { calculateCategoryScores } from '@/lib/calculations';
 
 interface VehicleFormModalProps {
@@ -96,6 +96,9 @@ function createInitialVehicle(prefs?: UserPreferences): Vehicle {
       testDriveConducted: false,
     },
 
+    isArchived: false,
+    archivedAt: undefined,
+
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -117,6 +120,8 @@ export function VehicleFormModal({
     if (vehicleToEdit) {
       return {
         ...vehicleToEdit,
+        isArchived: !!vehicleToEdit.isArchived,
+        archivedAt: vehicleToEdit.archivedAt,
         familySpace: {
           ...vehicleToEdit.familySpace,
           isofixDistanceCm: vehicleToEdit.familySpace?.isofixDistanceCm ?? null,
@@ -493,6 +498,40 @@ export function VehicleFormModal({
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              {/* Opção de Arquivar veículo (Manter escondido sem excluir) */}
+              <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-800/50 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs">
+                    <Archive className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Arquivar este veículo</span>
+                    {formData.isArchived && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
+                        Arquivado
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Mantém os dados do veículo salvos, mas esconde-o dos rankings principais e comparativos sem precisar excluí-lo.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.isArchived}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData({
+                        ...formData,
+                        isArchived: checked,
+                        archivedAt: checked ? new Date().toISOString() : undefined,
+                      });
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-amber-500"></div>
+                </label>
               </div>
             </div>
           )}

@@ -131,6 +131,10 @@ export interface Vehicle {
     testDriveConducted?: boolean; // Se realizou test-drive presencial
   };
 
+  // 9. Arquivamento (Manter escondido sem precisar excluir)
+  isArchived?: boolean; // Se o veículo está arquivado
+  archivedAt?: string; // Data/hora do arquivamento
+
   createdAt: string;
   updatedAt: string;
 }

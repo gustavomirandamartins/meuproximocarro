@@ -101,6 +101,10 @@ export function normalizeVehicle(raw: any): Vehicle {
       testDriveConducted: !!raw.userImpression?.testDriveConducted,
     },
 
+    // 9. Arquivamento (Manter escondido sem excluir)
+    isArchived: !!raw.isArchived,
+    archivedAt: raw.archivedAt || undefined,
+
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
@@ -243,6 +247,58 @@ export function useCarMatchStore() {
     deleteVehicleFromFirestore(id).catch(console.error);
   }, []);
 
+  // Archive vehicle (keep hidden without deleting)
+  const archiveVehicle = useCallback((id: string) => {
+    const now = new Date().toISOString();
+    setVehicles((prev) => {
+      const target = prev.find((v) => v.id === id);
+      if (!target) return prev;
+      const updated: Vehicle = {
+        ...target,
+        isArchived: true,
+        archivedAt: now,
+        updatedAt: now,
+      };
+      saveVehicleToFirestore(updated).catch(console.error);
+      return prev.map((v) => (v.id === id ? updated : v));
+    });
+  }, []);
+
+  // Unarchive vehicle (restore to active)
+  const unarchiveVehicle = useCallback((id: string) => {
+    const now = new Date().toISOString();
+    setVehicles((prev) => {
+      const target = prev.find((v) => v.id === id);
+      if (!target) return prev;
+      const updated: Vehicle = {
+        ...target,
+        isArchived: false,
+        archivedAt: undefined,
+        updatedAt: now,
+      };
+      saveVehicleToFirestore(updated).catch(console.error);
+      return prev.map((v) => (v.id === id ? updated : v));
+    });
+  }, []);
+
+  // Toggle archive status
+  const toggleArchiveVehicle = useCallback((id: string) => {
+    const now = new Date().toISOString();
+    setVehicles((prev) => {
+      const target = prev.find((v) => v.id === id);
+      if (!target) return prev;
+      const nextArchived = !target.isArchived;
+      const updated: Vehicle = {
+        ...target,
+        isArchived: nextArchived,
+        archivedAt: nextArchived ? now : undefined,
+        updatedAt: now,
+      };
+      saveVehicleToFirestore(updated).catch(console.error);
+      return prev.map((v) => (v.id === id ? updated : v));
+    });
+  }, []);
+
   // Clear all vehicles
   const clearAllVehicles = useCallback(() => {
     setVehicles((prev) => {
@@ -370,6 +426,9 @@ export function useCarMatchStore() {
     savePreferences,
     upsertVehicle,
     deleteVehicle,
+    archiveVehicle,
+    unarchiveVehicle,
+    toggleArchiveVehicle,
     clearAllVehicles,
     applyScenario,
     resetToSeedData,

@@ -757,7 +757,8 @@ export function isVehicleRankingEligible(
 
 export function computeUnifiedRanking(
   vehicles: Vehicle[],
-  preferences: UserPreferences
+  preferences: UserPreferences,
+  includeArchived: boolean = false
 ): {
   eligibleVehicles: Vehicle[];
   unmeasuredVehicles: Vehicle[];
@@ -765,9 +766,14 @@ export function computeUnifiedRanking(
   viableRanked: EvaluatedRankingItem[];
   disqualifiedRanked: EvaluatedRankingItem[];
   fullRanking: EvaluatedRankingItem[];
+  archivedVehicles: Vehicle[];
 } {
-  const eligibleVehicles = vehicles.filter((v) => isVehicleRankingEligible(v, preferences));
-  const unmeasuredVehicles = vehicles.filter((v) => !isVehicleRankingEligible(v, preferences));
+  // Veículos arquivados ficam escondidos do ranking ativo por padrão
+  const activeVehicles = includeArchived ? vehicles : vehicles.filter((v) => !v.isArchived);
+  const archivedVehicles = vehicles.filter((v) => !!v.isArchived);
+
+  const eligibleVehicles = activeVehicles.filter((v) => isVehicleRankingEligible(v, preferences));
+  const unmeasuredVehicles = activeVehicles.filter((v) => !isVehicleRankingEligible(v, preferences));
 
   const evaluatedEligible: EvaluatedRankingItem[] = eligibleVehicles.map((v) => {
     const elim = checkElimination(v, preferences);
@@ -812,5 +818,6 @@ export function computeUnifiedRanking(
     viableRanked,
     disqualifiedRanked,
     fullRanking,
+    archivedVehicles,
   };
 }

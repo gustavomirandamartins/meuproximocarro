@@ -28,13 +28,16 @@ export function DealershipQuickTestView({
   onUpdateVehicle,
   onNewVehicle,
 }: DealershipQuickTestViewProps) {
+  const activeVehicles = vehicles.filter((v) => !v.isArchived);
+  const selectableVehicles = activeVehicles.length > 0 ? activeVehicles : vehicles;
+
   const [currentId, setCurrentId] = useState<string>(
-    selectedVehicleId || (vehicles.length > 0 ? vehicles[0].id : '')
+    selectedVehicleId || (selectableVehicles.length > 0 ? selectableVehicles[0].id : '')
   );
 
   const [savedFeedback, setSavedFeedback] = useState<boolean>(false);
 
-  const currentVehicle = vehicles.find((v) => v.id === currentId) || vehicles[0];
+  const currentVehicle = selectableVehicles.find((v) => v.id === currentId) || selectableVehicles[0];
 
   if (!currentVehicle) {
     return (
@@ -108,9 +111,9 @@ export function DealershipQuickTestView({
             onChange={(e) => setCurrentId(e.target.value)}
             className="w-full h-14 pl-4 pr-10 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-180 border border-white/60 dark:border-white/10 text-slate-900 dark:text-white text-base font-bold shadow-[0_4px_16px_rgba(0,0,0,0.02),inset_0_1px_0_0_rgba(255,255,255,0.7)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.06)] appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
           >
-            {vehicles.map((v) => (
+            {selectableVehicles.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.brand} {v.model} ({v.powertrain}) — {v.dealership || 'Sem concessionária'}
+                {v.brand} {v.model} ({v.powertrain}) — {v.dealership || 'Sem concessionária'} {v.isArchived ? '(Arquivado)' : ''}
               </option>
             ))}
           </select>

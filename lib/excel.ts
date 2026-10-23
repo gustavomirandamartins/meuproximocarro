@@ -70,6 +70,9 @@ export const EXCEL_COLUMNS = [
   { header: 'Minha Impressão Geral (0 a 10 - Peso 50%)', key: 'user_impressionScore', width: 22 },
   { header: 'Minha Impressão - Test-Drive Realizado (Sim/Não)', key: 'user_testDriveConducted', width: 24 },
   { header: 'Minha Impressão - Anotações & Sensações ao Volante', key: 'user_notes', width: 36 },
+
+  // 9. Arquivamento (Manter escondido sem excluir)
+  { header: 'Arquivado (Sim/Não)', key: 'isArchived', width: 16 },
 ];
 
 function boolToText(val: boolean | undefined | null): string {
@@ -161,6 +164,9 @@ export function vehiclesToExcelRows(vehicles: Vehicle[]) {
     'Minha Impressão Geral (0 a 10 - Peso 50%)': v.userImpression?.score !== null && v.userImpression?.score !== undefined ? v.userImpression.score : '',
     'Minha Impressão - Test-Drive Realizado (Sim/Não)': boolToText(v.userImpression?.testDriveConducted),
     'Minha Impressão - Anotações & Sensações ao Volante': v.userImpression?.notes || '',
+
+    // 9. Arquivamento (Manter escondido sem excluir)
+    'Arquivado (Sim/Não)': boolToText(v.isArchived),
   }));
 }
 
@@ -195,6 +201,9 @@ export function exportVehiclesToExcel(vehicles: Vehicle[], customFileName?: stri
     { 'GUIA DE PREENCHIMENTO': '4. AVALIAÇÃO DO USUÁRIO (MINHA IMPRESSÃO GERAL - PESO 50%):' },
     { 'GUIA DE PREENCHIMENTO': '   - A avaliação pessoal tem peso de 50% na nota final ponderada do veículo (os critérios técnicos compõem os outros 50%).' },
     { 'GUIA DE PREENCHIMENTO': '   - Informe uma nota de 0 a 10 e suas observações subjetivas ao volante.' },
+    { 'GUIA DE PREENCHIMENTO': '' },
+    { 'GUIA DE PREENCHIMENTO': '5. ARQUIVAMENTO (MANTER ESCONDIDO SEM EXCLUIR):' },
+    { 'GUIA DE PREENCHIMENTO': '   - Coluna "Arquivado (Sim/Não)": se preenchido com "Sim", o veículo é mantido salvo mas escondido dos rankings e comparações ativas.' },
   ];
   const instructionSheet = XLSX.utils.json_to_sheet(instructionRows);
   instructionSheet['!cols'] = [{ wch: 80 }];
@@ -419,6 +428,10 @@ export async function parseVehiclesFromExcel(file: File): Promise<{
               notes: String(row['Minha Impressão - Anotações & Sensações ao Volante'] || row['Anotações do Test-Drive'] || '').trim(),
               testDriveConducted: textToBool(row['Minha Impressão - Test-Drive Realizado (Sim/Não)'] || row['Test-Drive Realizado']),
             },
+
+            // 9. Arquivamento (Manter escondido sem excluir)
+            isArchived: textToBool(row['Arquivado (Sim/Não)'] || row['Arquivado'] || row['Escondido']),
+            archivedAt: textToBool(row['Arquivado (Sim/Não)'] || row['Arquivado'] || row['Escondido']) ? new Date().toISOString() : undefined,
 
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
