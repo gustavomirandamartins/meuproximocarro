@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
-import { calculateTCO, calculateCategoryScores, checkElimination, getIsofixRating, formatMoney, formatNumber, compareDimensions } from '@/lib/calculations';
+import { calculateTCO, calculateCategoryScores, checkElimination, getIsofixRating, formatMoney, formatNumber, compareDimensions, calculateAnnualConsumption } from '@/lib/calculations';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { CalculationModal } from '@/components/ui/CalculationModal';
+import { VehicleReportModal } from '@/components/ui/VehicleReportModal';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import {
   Search,
   Plus,
@@ -17,6 +19,8 @@ import {
   Sparkles,
   Archive,
   ArchiveRestore,
+  FileText,
+  Zap,
 } from 'lucide-react';
 
 interface VehiclesViewProps {
@@ -44,6 +48,7 @@ export function VehiclesView({
   const [statusScope, setStatusScope] = useState<'active' | 'archived' | 'all'>('active');
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedCalcVehicle, setSelectedCalcVehicle] = useState<Vehicle | null>(null);
+  const [selectedReportVehicle, setSelectedReportVehicle] = useState<Vehicle | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const usedCar = preferences.usedCar;
@@ -262,6 +267,7 @@ export function VehiclesView({
             const scores = calculateCategoryScores(vehicle, preferences);
             const tco = calculateTCO(vehicle, preferences);
             const isofixRating = getIsofixRating(vehicle.familySpace.isofixDistanceCm);
+            const annualCons = calculateAnnualConsumption(vehicle, preferences);
 
             return (
               <div
@@ -295,18 +301,26 @@ export function VehiclesView({
                     </div>
                   )}
 
-                  {/* Top line: Brand/Model + Score */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                        {vehicle.brand}
-                      </span>
-                      <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
-                        {vehicle.model}
-                      </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                        {vehicle.version} · {vehicle.powertrain} ({vehicle.yearModel})
-                      </p>
+                  {/* Top line: Brand Logo + Brand/Model + Score */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BrandLogo
+                        brand={vehicle.brand}
+                        model={vehicle.model}
+                        size="md"
+                        showFallbackText
+                      />
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block truncate">
+                          {vehicle.brand}
+                        </span>
+                        <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight truncate">
+                          {vehicle.model}
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                          {vehicle.version} · {vehicle.powertrain} ({vehicle.yearModel})
+                        </p>
+                      </div>
                     </div>
 
                     <div className="text-right shrink-0 px-2 py-1 rounded-xl bg-white/70 dark:bg-white/10 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-2xs">
@@ -382,15 +396,60 @@ export function VehiclesView({
                       </div>
                     </div>
 
-                    {/* TCO 3 Anos (BA) */}
-                    <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">TCO (3 Anos BA)</span>
-                      <span className={`font-bold tabular-nums block mt-0.5 ${usedCar?.tco3Years && tco.totalTCO > usedCar.tco3Years ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                        R$ {formatMoney(tco.totalTCO)}
-                      </span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block">
-                        R$ {formatMoney(tco.monthlyTCO)} / mês
-                      </span>
+                    {/* Consumo Anual (e estimativa só na energia elétrica ao lado se for PHEV ou Elétrico) */}
+                    <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Consumo Anual</span>
+                          {annualCons.isElectricOrPhev && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
+                              <Zap className="w-2.5 h-2.5" />
+                              {annualCons.isBev ? '100% Elétrico' : 'PHEV'}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-bold tabular-nums block mt-0.5 text-slate-900 dark:text-white">
+                          R$ {formatMoney(annualCons.annualTotal)}
+                          <span className="text-[10px] font-normal text-slate-400"> /ano</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                          R$ {formatMoney(annualCons.monthlyTotal)} / mês
+                        </span>
+                      </div>
+
+                      {/* Estimativa só na energia elétrica ao lado / abaixo se for PHEV ou BEV */}
+                      {annualCons.isElectricOrPhev && annualCons.electricOnlyAnnual !== null && (
+                        <div className="mt-1 pt-1 border-t border-slate-200/60 dark:border-white/10 text-[10px]">
+                          {annualCons.isPhev || annualCons.isReev ? (
+                            <div className="space-y-0.5">
+                              <div className="flex items-center justify-between gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                <span className="flex items-center gap-0.5">
+                                  <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                                  <span>Só na tomada:</span>
+                                </span>
+                                <span className="tabular-nums font-bold">
+                                  R$ {formatMoney(annualCons.electricOnlyAnnual)}/ano
+                                </span>
+                              </div>
+                              {annualCons.electricEconomyAnnual && annualCons.electricEconomyAnnual > 0 && (
+                                <span className="text-[9px] text-emerald-700 dark:text-emerald-300 block font-medium">
+                                  Econ. de R$ {formatMoney(annualCons.electricEconomyAnnual)}/ano
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-1 text-cyan-600 dark:text-cyan-400 font-semibold">
+                              <span className="flex items-center gap-0.5">
+                                <Zap className="w-3 h-3 text-cyan-500 shrink-0" />
+                                <span>Tomada (BA 0,95)</span>
+                              </span>
+                              <span className="tabular-nums font-medium text-[9px] text-slate-500">
+                                {annualCons.annualKwhTotal} kWh/ano
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Comprimento */}
@@ -437,6 +496,15 @@ export function VehiclesView({
                       title="Ver memória de cálculo detalhada"
                     >
                       Cálculo
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedReportVehicle(vehicle)}
+                      className="px-2.5 py-1.5 text-blue-700 dark:text-cyan-300 hover:text-blue-800 dark:hover:text-cyan-200 bg-blue-50/80 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200/80 dark:border-blue-800/60 rounded-xl transition-all min-h-[38px] flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shadow-2xs"
+                      title="Gerar relatório do veículo com todas as informações contidas no cadastro"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
+                      <span className="hidden sm:inline">Relatório</span>
                     </button>
 
                     {deleteConfirmId === vehicle.id ? (
@@ -506,6 +574,14 @@ export function VehiclesView({
         preferences={preferences}
         isOpen={!!selectedCalcVehicle}
         onClose={() => setSelectedCalcVehicle(null)}
+      />
+
+      {/* Modal de Relatório Completo do Veículo */}
+      <VehicleReportModal
+        vehicle={selectedReportVehicle}
+        preferences={preferences}
+        isOpen={!!selectedReportVehicle}
+        onClose={() => setSelectedReportVehicle(null)}
       />
     </div>
   );

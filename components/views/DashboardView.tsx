@@ -11,10 +11,12 @@ import {
   formatNumber,
   compareDimensions,
   computeUnifiedRanking,
+  calculateAnnualConsumption,
 } from '@/lib/calculations';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { CalculationModal } from '@/components/ui/CalculationModal';
 import { ReportModal } from '@/components/ui/ReportModal';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import {
   CheckCircle2,
   AlertCircle,
@@ -25,6 +27,7 @@ import {
   Plus,
   ArrowRight,
   Archive,
+  Zap,
 } from 'lucide-react';
 import { ActiveTab } from '../navigation/TopBar';
 
@@ -204,14 +207,21 @@ export function DashboardView({
             </span>
             <div className="mt-1">
               {fullRanking.length > 0 ? (
-                <>
-                  <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white block truncate">
-                    {fullRanking[0].vehicle.brand} {fullRanking[0].vehicle.model}
-                  </span>
-                  <span className="text-xs font-semibold text-blue-600 dark:text-cyan-400">
-                    Nota: {formatNumber(fullRanking[0].scores.finalWeightedScore, 1)} / 100
-                  </span>
-                </>
+                <div className="flex items-center gap-2.5">
+                  <BrandLogo
+                    brand={fullRanking[0].vehicle.brand}
+                    model={fullRanking[0].vehicle.model}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white block truncate">
+                      {fullRanking[0].vehicle.brand} {fullRanking[0].vehicle.model}
+                    </span>
+                    <span className="text-xs font-semibold text-blue-600 dark:text-cyan-400 block truncate">
+                      Nota: {formatNumber(fullRanking[0].scores.finalWeightedScore, 1)} / 100
+                    </span>
+                  </div>
+                </div>
               ) : (
                 <span className="text-xs text-slate-400">Nenhum veículo apto</span>
               )}
@@ -225,14 +235,21 @@ export function DashboardView({
             </span>
             <div className="mt-1">
               {lowestTcoVehicle ? (
-                <>
-                  <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white block truncate">
-                    {lowestTcoVehicle.vehicle.brand} {lowestTcoVehicle.vehicle.model}
-                  </span>
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    R$ {formatMoney(lowestTcoVehicle.tco.totalTCO)} (R$ {formatMoney(lowestTcoVehicle.tco.monthlyTCO)}/mês)
-                  </span>
-                </>
+                <div className="flex items-center gap-2.5">
+                  <BrandLogo
+                    brand={lowestTcoVehicle.vehicle.brand}
+                    model={lowestTcoVehicle.vehicle.model}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white block truncate">
+                      {lowestTcoVehicle.vehicle.brand} {lowestTcoVehicle.vehicle.model}
+                    </span>
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums block truncate">
+                      R$ {formatMoney(lowestTcoVehicle.tco.totalTCO)} (R$ {formatMoney(lowestTcoVehicle.tco.monthlyTCO)}/mês)
+                    </span>
+                  </div>
+                </div>
               ) : (
                 <span className="text-xs text-slate-400">Nenhum</span>
               )}
@@ -246,14 +263,21 @@ export function DashboardView({
             </span>
             <div className="mt-1">
               {widestIsofixVehicle && widestIsofixVehicle.vehicle.familySpace.isofixDistanceCm ? (
-                <>
-                  <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white block truncate">
-                    {widestIsofixVehicle.vehicle.brand} {widestIsofixVehicle.vehicle.model}
-                  </span>
-                  <span className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 tabular-nums">
-                    {formatNumber(widestIsofixVehicle.vehicle.familySpace.isofixDistanceCm, 2)} cm medidos
-                  </span>
-                </>
+                <div className="flex items-center gap-2.5">
+                  <BrandLogo
+                    brand={widestIsofixVehicle.vehicle.brand}
+                    model={widestIsofixVehicle.vehicle.model}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white block truncate">
+                      {widestIsofixVehicle.vehicle.brand} {widestIsofixVehicle.vehicle.model}
+                    </span>
+                    <span className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 tabular-nums block truncate">
+                      {formatNumber(widestIsofixVehicle.vehicle.familySpace.isofixDistanceCm, 2)} cm medidos
+                    </span>
+                  </div>
+                </div>
               ) : (
                 <span className="text-xs text-slate-400">Medições pendentes</span>
               )}
@@ -298,6 +322,7 @@ export function DashboardView({
               {topFinalists.map((item, idx) => {
                 const { vehicle, scores, tco } = item;
                 const isofixRating = getIsofixRating(vehicle.familySpace.isofixDistanceCm);
+                const annualCons = calculateAnnualConsumption(vehicle, preferences);
                 const rankPosition = idx + 1;
 
                 return (
@@ -306,17 +331,25 @@ export function DashboardView({
                     className="rounded-3xl border border-white/60 dark:border-white/10 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl p-5 shadow-sm flex flex-col justify-between transition-all"
                   >
                     <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-[11px] font-semibold text-blue-600 dark:text-cyan-400">
-                            #{rankPosition} no Ranking
-                          </span>
-                          <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                            {vehicle.brand} {vehicle.model}
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            {vehicle.version} · {vehicle.powertrain}
-                          </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <BrandLogo
+                            brand={vehicle.brand}
+                            model={vehicle.model}
+                            size="md"
+                            showFallbackText
+                          />
+                          <div className="min-w-0">
+                            <span className="text-[11px] font-semibold text-blue-600 dark:text-cyan-400 block">
+                              #{rankPosition} no Ranking
+                            </span>
+                            <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                              {vehicle.brand} {vehicle.model}
+                            </h3>
+                            <p className="text-xs text-slate-500 truncate">
+                              {vehicle.version} · {vehicle.powertrain}
+                            </p>
+                          </div>
                         </div>
 
                         <div className="text-right px-2 py-1 rounded-xl bg-slate-100 dark:bg-white/10 border border-white/50 dark:border-white/10">
@@ -362,15 +395,60 @@ export function DashboardView({
                         </div>
                       </div>
 
-                      {/* TCO 3 Anos (BA) */}
-                      <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">TCO 3 Anos (BA)</span>
-                        <span className={`font-bold tabular-nums block mt-0.5 ${usedCar?.tco3Years && tco.totalTCO > usedCar.tco3Years ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                          R$ {formatMoney(tco.totalTCO)}
-                        </span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block">
-                          R$ {formatMoney(tco.monthlyTCO)}/mês
-                        </span>
+                      {/* Consumo Anual (e estimativa só na energia elétrica ao lado se for PHEV ou Elétrico) */}
+                      <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Consumo Anual</span>
+                            {annualCons.isElectricOrPhev && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
+                                <Zap className="w-2.5 h-2.5" />
+                                {annualCons.isBev ? '100% Elétrico' : 'PHEV'}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-bold tabular-nums block mt-0.5 text-slate-900 dark:text-white">
+                            R$ {formatMoney(annualCons.annualTotal)}
+                            <span className="text-[10px] font-normal text-slate-400"> /ano</span>
+                          </span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                            R$ {formatMoney(annualCons.monthlyTotal)} / mês
+                          </span>
+                        </div>
+
+                        {/* Estimativa só na energia elétrica ao lado / abaixo se for PHEV ou BEV */}
+                        {annualCons.isElectricOrPhev && annualCons.electricOnlyAnnual !== null && (
+                          <div className="mt-1 pt-1 border-t border-slate-200/60 dark:border-white/10 text-[10px]">
+                            {annualCons.isPhev || annualCons.isReev ? (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center justify-between gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  <span className="flex items-center gap-0.5">
+                                    <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                                    <span>Só na tomada:</span>
+                                  </span>
+                                  <span className="tabular-nums font-bold">
+                                    R$ {formatMoney(annualCons.electricOnlyAnnual)}/ano
+                                  </span>
+                                </div>
+                                {annualCons.electricEconomyAnnual && annualCons.electricEconomyAnnual > 0 && (
+                                  <span className="text-[9px] text-emerald-700 dark:text-emerald-300 block font-medium">
+                                    Econ. de R$ {formatMoney(annualCons.electricEconomyAnnual)}/ano
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-1 text-cyan-600 dark:text-cyan-400 font-semibold">
+                                <span className="flex items-center gap-0.5">
+                                  <Zap className="w-3 h-3 text-cyan-500 shrink-0" />
+                                  <span>Tomada (BA 0,95)</span>
+                                </span>
+                                <span className="tabular-nums font-medium text-[9px] text-slate-500">
+                                  {annualCons.annualKwhTotal} kWh/ano
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Comprimento */}

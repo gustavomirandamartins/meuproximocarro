@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
 import { calculateTCO, calculateCategoryScores, checkElimination, getIsofixRating, formatMoney, formatNumber, compareDimensions } from '@/lib/calculations';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Check, X, Scale, AlertTriangle, Sparkles } from 'lucide-react';
 
 interface ComparisonViewProps {
@@ -177,16 +178,19 @@ export function ComparisonView({
                 </th>
                 {calculatedMap.map(({ vehicle, scores }, idx) => (
                   <th key={vehicle.id} className="p-4 min-w-[220px] border-l border-slate-200/80 dark:border-slate-800 align-top">
-                    <div className="space-y-1">
-                      <span className="text-[11px] font-bold text-blue-600 dark:text-cyan-400">
-                        Nota: {formatNumber(scores.finalWeightedScore, 1)} / 100
-                      </span>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
-                        {vehicle.brand} {vehicle.model}
-                      </h3>
-                      <p className="text-xs text-slate-500 font-normal">
-                        {vehicle.version} ({vehicle.powertrain})
-                      </p>
+                    <div className="flex items-start gap-2.5">
+                      <BrandLogo brand={vehicle.brand} model={vehicle.model} size="sm" showFallbackText />
+                      <div className="space-y-1 min-w-0">
+                        <span className="text-[11px] font-bold text-blue-600 dark:text-cyan-400 block truncate">
+                          Nota: {formatNumber(scores.finalWeightedScore, 1)} / 100
+                        </span>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight truncate">
+                          {vehicle.brand} {vehicle.model}
+                        </h3>
+                        <p className="text-xs text-slate-500 font-normal truncate">
+                          {vehicle.version} ({vehicle.powertrain})
+                        </p>
+                      </div>
                     </div>
                   </th>
                 ))}

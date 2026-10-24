@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
 import { getIsofixRating, checkElimination, formatNumber, calculateCategoryScores } from '@/lib/calculations';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -11,7 +12,9 @@ import {
   ChevronDown,
   RotateCcw,
   Sparkles,
+  FileText,
 } from 'lucide-react';
+import { VehicleReportModal } from '@/components/ui/VehicleReportModal';
 
 interface DealershipQuickTestViewProps {
   vehicles: Vehicle[];
@@ -36,6 +39,7 @@ export function DealershipQuickTestView({
   );
 
   const [savedFeedback, setSavedFeedback] = useState<boolean>(false);
+  const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
 
   const currentVehicle = selectableVehicles.find((v) => v.id === currentId) || selectableVehicles[0];
 
@@ -102,22 +106,36 @@ export function DealershipQuickTestView({
 
       {/* Vehicle Quick Selector */}
       <div className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-          Carro Sendo Avaliado Agora:
-        </label>
-        <div className="relative">
-          <select
-            value={currentVehicle.id}
-            onChange={(e) => setCurrentId(e.target.value)}
-            className="w-full h-14 pl-4 pr-10 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-180 border border-white/60 dark:border-white/10 text-slate-900 dark:text-white text-base font-bold shadow-[0_4px_16px_rgba(0,0,0,0.02),inset_0_1px_0_0_rgba(255,255,255,0.7)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.06)] appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+            Carro Sendo Avaliado Agora:
+          </label>
+          <button
+            type="button"
+            onClick={() => setIsReportOpen(true)}
+            className="text-xs font-semibold text-blue-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+            title="Gerar relatório do veículo com todas as informações contidas no cadastro"
           >
-            {selectableVehicles.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.brand} {v.model} ({v.powertrain}) — {v.dealership || 'Sem concessionária'} {v.isArchived ? '(Arquivado)' : ''}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="w-5 h-5 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <FileText className="w-3.5 h-3.5" />
+            <span>Gerar relatório do veículo</span>
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <BrandLogo brand={currentVehicle.brand} model={currentVehicle.model} size="lg" showFallbackText />
+          <div className="relative flex-1 min-w-0">
+            <select
+              value={currentVehicle.id}
+              onChange={(e) => setCurrentId(e.target.value)}
+              className="w-full h-14 pl-4 pr-10 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-180 border border-white/60 dark:border-white/10 text-slate-900 dark:text-white text-base font-bold shadow-[0_4px_16px_rgba(0,0,0,0.02),inset_0_1px_0_0_rgba(255,255,255,0.7)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.06)] appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+            >
+              {selectableVehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.brand} {v.model} ({v.powertrain}) — {v.dealership || 'Sem concessionária'} {v.isArchived ? '(Arquivado)' : ''}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-5 h-5 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -512,6 +530,15 @@ export function DealershipQuickTestView({
           </section>
         );
       })()}
+
+      {currentVehicle && (
+        <VehicleReportModal
+          vehicle={currentVehicle}
+          preferences={preferences}
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+        />
+      )}
     </div>
   );
 }

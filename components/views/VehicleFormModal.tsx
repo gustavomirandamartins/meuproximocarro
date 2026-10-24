@@ -4,8 +4,11 @@ import React, { useState } from 'react';
 import { Vehicle, PowertrainType, VehicleStatus, UserPreferences, PaymentCondition } from '@/types/vehicle';
 import { formatMoney, formatNumber, calculatePaymentOption, compareDimensions, checkElimination } from '@/lib/calculations';
 import { PtBrNumberInput } from '@/components/ui/PtBrNumberInput';
-import { X, ArrowRight, ArrowLeft, Check, Plus, Trash2, Calculator, Info, AlertTriangle, Sparkles, Star, RotateCcw, Archive, ArchiveRestore } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Check, Plus, Trash2, Calculator, Info, AlertTriangle, Sparkles, Star, RotateCcw, Archive, ArchiveRestore, FileText } from 'lucide-react';
 import { calculateCategoryScores } from '@/lib/calculations';
+import { VehicleReportModal } from '@/components/ui/VehicleReportModal';
+import { BrandLogo } from '@/components/ui/BrandLogo';
+import { INITIAL_PREFERENCES } from '@/lib/seed-data';
 
 interface VehicleFormModalProps {
   vehicleToEdit: Vehicle | null;
@@ -133,6 +136,7 @@ export function VehicleFormModal({
   });
 
   const [formError, setFormError] = useState<string | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -272,29 +276,42 @@ export function VehicleFormModal({
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/50 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-xl flex items-center justify-between shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-cyan-400">
-                Etapa {step} de {totalSteps}
-              </span>
-              <span className="text-xs text-slate-400">·</span>
-              <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                {step === 1 && 'Identificação & Concessionária'}
-                {step === 2 && 'Preço & Negociação'}
-                {step === 3 && 'Espaço & ISOFIX'}
-                {step === 4 && 'Porta-malas & Praticidade'}
-                {step === 5 && 'Motorização & Bateria'}
-                {step === 6 && 'Consumo & Segurança'}
-                {step === 7 && 'Conforto, Custos & Garantia'}
-                {step === 8 && 'Avaliação do Usuário — Minha Impressão Geral'}
-              </span>
+          <div className="flex items-center gap-3 min-w-0">
+            <BrandLogo brand={formData.brand} model={formData.model} size="md" showFallbackText />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-cyan-400">
+                  Etapa {step} de {totalSteps}
+                </span>
+                <span className="text-xs text-slate-400">·</span>
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-medium truncate">
+                  {step === 1 && 'Identificação & Concessionária'}
+                  {step === 2 && 'Preço & Negociação'}
+                  {step === 3 && 'Espaço & ISOFIX'}
+                  {step === 4 && 'Porta-malas & Praticidade'}
+                  {step === 5 && 'Motorização & Bateria'}
+                  {step === 6 && 'Consumo & Segurança'}
+                  {step === 7 && 'Conforto, Custos & Garantia'}
+                  {step === 8 && 'Avaliação do Usuário — Minha Impressão Geral'}
+                </span>
+              </div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white mt-0.5 truncate">
+                {vehicleToEdit ? `Editar: ${formData.brand} ${formData.model || 'Veículo'}` : (formData.brand ? `${formData.brand} ${formData.model || ''}` : 'Cadastrar Novo Veículo')}
+              </h2>
             </div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
-              {vehicleToEdit ? `Editar: ${formData.brand} ${formData.model || 'Veículo'}` : 'Cadastrar Novo Veículo'}
-            </h2>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsReportOpen(true)}
+              className="px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-cyan-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+              title="Gerar relatório do veículo com todas as informações contidas no cadastro"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
+              <span className="hidden sm:inline">Gerar Relatório</span>
+            </button>
+
             <button
               type="button"
               onClick={handleSave}
@@ -1763,6 +1780,14 @@ export function VehicleFormModal({
           </div>
         </div>
       </div>
+
+      {/* Modal de Relatório Completo do Veículo */}
+      <VehicleReportModal
+        vehicle={formData}
+        preferences={preferences || INITIAL_PREFERENCES}
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+      />
     </div>
   );
 }

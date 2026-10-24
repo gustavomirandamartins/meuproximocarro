@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Vehicle, UserPreferences } from '@/types/vehicle';
 import { calculateTCO, calculateCategoryScores, checkElimination, formatMoney, formatNumber } from '@/lib/calculations';
-import { X, Calculator, AlertCircle } from 'lucide-react';
+import { X, Calculator, AlertCircle, FileText } from 'lucide-react';
+import { VehicleReportModal } from './VehicleReportModal';
 
 interface CalculationModalProps {
   vehicle: Vehicle | null;
@@ -18,6 +19,8 @@ export function CalculationModal({
   isOpen,
   onClose,
 }: CalculationModalProps) {
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
   if (!isOpen || !vehicle) return null;
 
   const tco3 = calculateTCO(vehicle, preferences);
@@ -48,13 +51,23 @@ export function CalculationModal({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            aria-label="Fechar"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsReportOpen(true)}
+              className="px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-cyan-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+              title="Gerar relatório do veículo com todas as informações contidas no cadastro"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
+              <span>Gerar Relatório</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -259,6 +272,13 @@ export function CalculationModal({
           </section>
         </div>
       </div>
+
+      <VehicleReportModal
+        vehicle={vehicle}
+        preferences={preferences}
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+      />
     </div>
   );
 }

@@ -13,10 +13,13 @@ import {
   formatMoney,
   compareDimensions,
   computeUnifiedRanking,
+  calculateAnnualConsumption,
 } from '@/lib/calculations';
 import { StatusBadge, IsofixBadge } from '@/components/ui/StatusBadge';
 import { CalculationModal } from '@/components/ui/CalculationModal';
 import { ReportModal } from '@/components/ui/ReportModal';
+import { VehicleReportModal } from '@/components/ui/VehicleReportModal';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import {
   Award,
   AlertTriangle,
@@ -32,6 +35,8 @@ import {
   ArrowUpDown,
   Filter,
   XCircle,
+  FileText,
+  Zap,
 } from 'lucide-react';
 
 interface RankingViewProps {
@@ -52,6 +57,7 @@ export function RankingView({
   onNewVehicle,
 }: RankingViewProps) {
   const [selectedCalcVehicle, setSelectedCalcVehicle] = useState<Vehicle | null>(null);
+  const [selectedReportVehicle, setSelectedReportVehicle] = useState<Vehicle | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [expandedVehicleId, setExpandedVehicleId] = useState<string | null>(null);
   const [showLiveWeights, setShowLiveWeights] = useState<boolean>(false);
@@ -519,6 +525,7 @@ export function RankingView({
                   const { vehicle, scores, tco, explanation, costBenefitPrice, costBenefitTco } = item;
                   const isExpanded = expandedVehicleId === vehicle.id;
                   const isofixRating = getIsofixRating(vehicle.familySpace.isofixDistanceCm);
+                  const annualCons = calculateAnnualConsumption(vehicle, preferences);
                   const changeState = rankChanges[vehicle.id];
                   const isDisqualified = item.elim.isEliminated;
                   const rankIndex = fullRanking.findIndex((x) => x.vehicle.id === vehicle.id);
@@ -580,41 +587,49 @@ export function RankingView({
                             )}
                           </motion.div>
 
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs text-slate-500 font-semibold">{vehicle.brand}</span>
-                              <StatusBadge status={vehicle.status} size="sm" />
-                              {isDisqualified && (
-                                <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3 text-rose-600" />
-                                  Desclassificado
-                                </span>
-                              )}
-                              {changeState === 'up' && !isDisqualified && (
-                                <motion.span
-                                  initial={{ opacity: 0, scale: 0.8 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded flex items-center gap-0.5"
-                                >
-                                  <TrendingUp className="w-3 h-3" /> Subiu
-                                </motion.span>
-                              )}
-                              {changeState === 'down' && !isDisqualified && (
-                                <motion.span
-                                  initial={{ opacity: 0, scale: 0.8 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded flex items-center gap-0.5"
-                                >
-                                  <TrendingDown className="w-3 h-3" /> Caiu
-                                </motion.span>
-                              )}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <BrandLogo
+                              brand={vehicle.brand}
+                              model={vehicle.model}
+                              size="md"
+                              showFallbackText
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs text-slate-500 font-semibold">{vehicle.brand}</span>
+                                <StatusBadge status={vehicle.status} size="sm" />
+                                {isDisqualified && (
+                                  <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                    Desclassificado
+                                  </span>
+                                )}
+                                {changeState === 'up' && !isDisqualified && (
+                                  <motion.span
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                                  >
+                                    <TrendingUp className="w-3 h-3" /> Subiu
+                                  </motion.span>
+                                )}
+                                {changeState === 'down' && !isDisqualified && (
+                                  <motion.span
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                                  >
+                                    <TrendingDown className="w-3 h-3" /> Caiu
+                                  </motion.span>
+                                )}
+                              </div>
+                              <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight truncate">
+                                {vehicle.model}
+                              </h2>
+                              <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
+                                {vehicle.version} · {vehicle.powertrain} · {vehicle.dealership}
+                              </span>
                             </div>
-                            <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
-                              {vehicle.model}
-                            </h2>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              {vehicle.version} · {vehicle.powertrain} · {vehicle.dealership}
-                            </span>
                           </div>
                         </div>
 
@@ -679,15 +694,60 @@ export function RankingView({
                           </div>
                         </div>
 
-                        {/* TCO 3 Anos (BA) */}
-                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5">
-                          <span className="text-slate-500 dark:text-slate-400 block text-[11px]">TCO (3 Anos BA)</span>
-                          <span className={`font-bold tabular-nums block mt-0.5 ${preferences.usedCar?.tco3Years && tco.totalTCO > preferences.usedCar.tco3Years ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'}`}>
-                            R$ {formatMoney(tco.totalTCO)}
-                          </span>
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block">
-                            R$ {formatMoney(tco.monthlyTCO)}/mês
-                          </span>
+                        {/* Consumo Anual (e estimativa só na energia elétrica ao lado se for PHEV ou Elétrico) */}
+                        <div className="p-2.5 rounded-2xl bg-white/55 dark:bg-white/5 border border-white/50 dark:border-white/5 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Consumo Anual</span>
+                              {annualCons.isElectricOrPhev && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
+                                  <Zap className="w-2.5 h-2.5" />
+                                  {annualCons.isBev ? '100% Elétrico' : 'PHEV'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-bold tabular-nums block mt-0.5 text-slate-900 dark:text-white">
+                              R$ {formatMoney(annualCons.annualTotal)}
+                              <span className="text-[10px] font-normal text-slate-400"> /ano</span>
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                              R$ {formatMoney(annualCons.monthlyTotal)} / mês
+                            </span>
+                          </div>
+
+                          {/* Estimativa só na energia elétrica ao lado / abaixo se for PHEV ou BEV */}
+                          {annualCons.isElectricOrPhev && annualCons.electricOnlyAnnual !== null && (
+                            <div className="mt-1 pt-1 border-t border-slate-200/60 dark:border-white/10 text-[10px]">
+                              {annualCons.isPhev || annualCons.isReev ? (
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center justify-between gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                    <span className="flex items-center gap-0.5">
+                                      <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                                      <span>Só na tomada:</span>
+                                    </span>
+                                    <span className="tabular-nums font-bold">
+                                      R$ {formatMoney(annualCons.electricOnlyAnnual)}/ano
+                                    </span>
+                                  </div>
+                                  {annualCons.electricEconomyAnnual && annualCons.electricEconomyAnnual > 0 && (
+                                    <span className="text-[9px] text-emerald-700 dark:text-emerald-300 block font-medium">
+                                      Econ. de R$ {formatMoney(annualCons.electricEconomyAnnual)}/ano
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-between gap-1 text-cyan-600 dark:text-cyan-400 font-semibold">
+                                  <span className="flex items-center gap-0.5">
+                                    <Zap className="w-3 h-3 text-cyan-500 shrink-0" />
+                                    <span>Tomada (BA 0,95)</span>
+                                  </span>
+                                  <span className="tabular-nums font-medium text-[9px] text-slate-500">
+                                    {annualCons.annualKwhTotal} kWh/ano
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Comprimento */}
@@ -850,13 +910,24 @@ export function RankingView({
                       </div>
 
                   {/* Footer Buttons */}
-                  <div className="mt-4 pt-3 border-t border-white/40 dark:border-white/5 flex items-center justify-between text-xs">
-                    <button
-                      onClick={() => setSelectedCalcVehicle(vehicle)}
-                      className="text-slate-500 hover:text-slate-900 dark:hover:text-white hover:underline cursor-pointer"
-                    >
-                      Ver cálculo completo
-                    </button>
+                  <div className="mt-4 pt-3 border-t border-white/40 dark:border-white/5 flex items-center justify-between text-xs flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSelectedCalcVehicle(vehicle)}
+                        className="text-slate-500 hover:text-slate-900 dark:hover:text-white hover:underline cursor-pointer"
+                      >
+                        Ver cálculo
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedReportVehicle(vehicle)}
+                        className="text-blue-600 dark:text-cyan-400 hover:text-blue-700 dark:hover:text-cyan-300 font-semibold hover:underline cursor-pointer flex items-center gap-1"
+                        title="Gerar relatório do veículo com todas as informações contidas no cadastro"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Gerar relatório do veículo</span>
+                      </button>
+                    </div>
 
                     <button
                       onClick={() => onSelectVehicle(vehicle)}
@@ -887,6 +958,13 @@ export function RankingView({
         preferences={preferences}
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
+      />
+
+      <VehicleReportModal
+        vehicle={selectedReportVehicle}
+        preferences={preferences}
+        isOpen={Boolean(selectedReportVehicle)}
+        onClose={() => setSelectedReportVehicle(null)}
       />
     </div>
   );

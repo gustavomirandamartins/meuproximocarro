@@ -459,6 +459,103 @@ export function calculateTCO(
   };
 }
 
+export interface AnnualConsumptionResult {
+  annualTotal: number;
+  monthlyTotal: number;
+  isElectricOrPhev: boolean;
+  isPhev: boolean;
+  isBev: boolean;
+  isReev: boolean;
+  electricOnlyAnnual: number | null;
+  electricOnlyMonthly: number | null;
+  electricEconomyAnnual: number | null;
+  kwhPer100Km: number;
+  annualKwhTotal: number;
+}
+
+export function calculateAnnualConsumption(
+  vehicle: Vehicle,
+  preferences: UserPreferences
+): AnnualConsumptionResult {
+  const annualKm = preferences.annualKm || 15000;
+  const urbanShare = (preferences.urbanSharePercent || 75) / 100;
+  const roadShare = 1 - urbanShare;
+  const gasPrice = preferences.gasolinePricePerLiter || 6.20;
+  const elecPrice = preferences.electricityPricePerKwh || 0.95;
+
+  const powertrain = vehicle.powertrain;
+  const isBev = powertrain === 'BEV';
+  const isPhev = powertrain === 'PHEV';
+  const isReev = powertrain === 'REEV';
+  const isElectricOrPhev = isBev || isPhev || isReev;
+
+  // 1. Estimativa de consumo 100% na energia elétrica (para PHEV, BEV ou REEV)
+  let electricOnlyAnnual: number | null = null;
+  let electricOnlyMonthly: number | null = null;
+  let kwhPer100Km = 16.5; // Média de mercado de ~6 km/kWh para SUVs/sedans médios
+
+  if (isElectricOrPhev) {
+    const batKwh = vehicle.powertrainSpec?.batteryKwh || 0;
+    const elecRange = vehicle.powertrainSpec?.electricRangeKm || 0;
+
+    if (batKwh > 0 && elecRange > 0) {
+      const kmPerKwh = elecRange / batKwh;
+      if (kmPerKwh >= 2 && kmPerKwh <= 15) {
+        kwhPer100Km = 100 / kmPerKwh;
+      }
+    }
+
+    // Eficiência do carregamento residencial (perdas de conversão AC/DC em torno de 10%)
+    const chargingLossFactor = 1.10;
+    const annualKwh = (annualKm / 100) * kwhPer100Km * chargingLossFactor;
+    electricOnlyAnnual = Math.round((annualKwh * elecPrice + Number.EPSILON) * 100) / 100;
+    electricOnlyMonthly = Math.round((electricOnlyAnnual / 12 + Number.EPSILON) * 100) / 100;
+  }
+
+  // 2. Consumo padrão (combustível ou energia elétrica)
+  let annualTotal = 0;
+
+  if (isBev) {
+    // 100% elétrico: o consumo anual padrão é o custo elétrico
+    annualTotal = electricOnlyAnnual || 0;
+  } else if (vehicle.warrantyCosts?.consumption3Years && vehicle.warrantyCosts.consumption3Years > 0) {
+    annualTotal = Math.round((vehicle.warrantyCosts.consumption3Years / 3 + Number.EPSILON) * 100) / 100;
+  } else {
+    // Cálculo baseado em consumo urbano e rodoviário (km/l)
+    const urbanKmL = vehicle.consumption?.urbanKmL || 12;
+    const highwayKmL = vehicle.consumption?.highwayKmL || 13;
+    const urbanKm = annualKm * urbanShare;
+    const roadKm = annualKm * roadShare;
+    const litersAnnual = (urbanKm / Math.max(0.1, urbanKmL)) + (roadKm / Math.max(0.1, highwayKmL));
+    annualTotal = Math.round((litersAnnual * gasPrice + Number.EPSILON) * 100) / 100;
+  }
+
+  const monthlyTotal = Math.round((annualTotal / 12 + Number.EPSILON) * 100) / 100;
+
+  // 3. Economia ao rodar só na tomada para PHEV/REEV
+  let electricEconomyAnnual: number | null = null;
+  if ((isPhev || isReev) && electricOnlyAnnual !== null && annualTotal > electricOnlyAnnual) {
+    electricEconomyAnnual = Math.round((annualTotal - electricOnlyAnnual + Number.EPSILON) * 100) / 100;
+  }
+
+  const chargingLossFactor = 1.10;
+  const annualKwhTotal = isElectricOrPhev ? Math.round((annualKm / 100) * kwhPer100Km * chargingLossFactor) : 0;
+
+  return {
+    annualTotal,
+    monthlyTotal,
+    isElectricOrPhev,
+    isPhev,
+    isBev,
+    isReev,
+    electricOnlyAnnual,
+    electricOnlyMonthly,
+    electricEconomyAnnual,
+    kwhPer100Km: Math.round(kwhPer100Km * 10) / 10,
+    annualKwhTotal,
+  };
+}
+
 export interface CategoryScores {
   familySpace: number; // 0 - 100
   tco: number; // 0 - 100
